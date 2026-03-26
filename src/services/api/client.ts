@@ -15,7 +15,7 @@ const JSON_UTF8 = 'application/json';
 function createBareClient(baseURL: string): AxiosInstance {
   return axios.create({
     baseURL,
-    timeout: 45_000,
+    timeout: 12_000,
     headers: {
       Accept: JSON_UTF8,
       'Content-Type': JSON_UTF8,

@@ -1,13 +1,16 @@
 import { getApiBaseUrl } from '@/config/env';
 import { getAuthApiClient } from '@/services/api/client';
 import * as tokenStorage from '@/services/auth/tokenStorage';
+import { fetchArrayWithOfflineCache } from '@/services/offline/apiCache';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
 
 /** Igual que Angular `ViaTramoService.getAll()` → `{ tramos }`. */
 export async function fetchViaTramos(): Promise<ViaTramoListItemDto[]> {
-  const client = getAuthApiClient();
-  const { data } = await client.get<{ tramos?: ViaTramoListItemDto[] }>('/via-tramos');
-  return Array.isArray(data.tramos) ? data.tramos : [];
+  return fetchArrayWithOfflineCache('via-tramos:list', async () => {
+    const client = getAuthApiClient();
+    const { data } = await client.get<{ tramos?: ViaTramoListItemDto[] }>('/via-tramos');
+    return Array.isArray(data.tramos) ? data.tramos : [];
+  });
 }
 
 export interface ViaTramoCreateResponse {

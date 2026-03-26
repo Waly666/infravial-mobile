@@ -32,10 +32,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }): React
     let cancelled = false;
     (async () => {
       try {
-        const session = await tokenStorage.loadStoredSession();
-        if (!cancelled && session) {
-          setUser(session.user);
-        }
+        // Requerimiento operativo: siempre pedir login al abrir la app.
+        await tokenStorage.clearSession();
+        if (!cancelled) setUser(null);
       } finally {
         if (!cancelled) {
           setReady(true);

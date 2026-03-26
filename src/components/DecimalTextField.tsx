@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 const styles = StyleSheet.create({
   block: { marginBottom: 12 },
@@ -70,7 +70,7 @@ export function DecimalTextField(props: {
         onChangeText={setText}
         onEndEditing={flush}
         onBlur={flush}
-        keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numbers-and-punctuation'}
+        keyboardType="decimal-pad"
         placeholder={variant === 'coord' ? 'Ej: 4.6097' : 'Ej: 1,25'}
       />
       {hint ? <Text style={{ fontSize: 11, color: '#78909c', marginTop: 4 }}>{hint}</Text> : null}

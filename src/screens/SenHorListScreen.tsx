@@ -17,11 +17,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useJornadaActiva } from '@/hooks/useJornadaActiva';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { RootStackParamList } from '@/navigation/types';
-import { deleteExistSenVert, fetchExistSenVertRegistros } from '@/services/api/senVertApi';
+import { deleteExistSenHor, fetchExistSenHorRegistros } from '@/services/api/senHorApi';
 import { useAppTheme } from '@/theme/ThemeProvider';
-import type { ExistSenVertListItemDto } from '@/types/senVert';
+import type { ExistSenHorListItemDto } from '@/types/senHor';
 
-function tramoLabel(r: ExistSenVertListItemDto): string {
+function tramoLabel(r: ExistSenHorListItemDto): string {
   const t = r.idViaTramo;
   if (t && typeof t === 'object') {
     return `${t.via ?? t.nomenclatura?.completa ?? '—'} · ${t.municipio ?? ''}`;
@@ -29,13 +29,13 @@ function tramoLabel(r: ExistSenVertListItemDto): string {
   return String(t ?? '—');
 }
 
-export function SenVertListScreen(): React.JSX.Element {
+export function SenHorListScreen(): React.JSX.Element {
   const navigation = useNavigation();
   const { colors, theme } = useAppTheme();
   const online = useOnlineStatus();
   const { user } = useAuth();
   const { jornada, refresh: refreshJornada } = useJornadaActiva();
-  const [registros, setRegistros] = useState<ExistSenVertListItemDto[]>([]);
+  const [registros, setRegistros] = useState<ExistSenHorListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
 
@@ -44,7 +44,7 @@ export function SenVertListScreen(): React.JSX.Element {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRegistros(await fetchExistSenVertRegistros());
+      setRegistros(await fetchExistSenHorRegistros());
     } catch {
       setRegistros([]);
     } finally {
@@ -62,20 +62,20 @@ export function SenVertListScreen(): React.JSX.Element {
   function openWizard(id?: string): void {
     const parent = navigation.getParent();
     if (parent) {
-      parent.navigate('SenVertWizard' as keyof RootStackParamList, id ? { id } : undefined);
+      parent.navigate('SenHorWizard' as keyof RootStackParamList, id ? { id } : undefined);
     }
   }
 
   async function eliminar(id: string): Promise<void> {
     if (!canAdmin) return;
-    Alert.alert('Eliminar', '¿Eliminar esta señal vertical?', [
+    Alert.alert('Eliminar', '¿Eliminar esta señal horizontal?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteExistSenVert(id);
+            await deleteExistSenHor(id);
             void load();
           } catch (e) {
             Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo eliminar');
@@ -89,9 +89,10 @@ export function SenVertListScreen(): React.JSX.Element {
   const filtrados = q
     ? registros.filter(
         (r) =>
-          (r.codSe ?? '').toLowerCase().includes(q) ||
+          (r.codSeHor ?? '').toLowerCase().includes(q) ||
           tramoLabel(r).toLowerCase().includes(q) ||
-          (r.estado ?? '').toLowerCase().includes(q) ||
+          (r.estadoDem ?? '').toLowerCase().includes(q) ||
+          (r.material ?? '').toLowerCase().includes(q) ||
           r._id.toLowerCase().includes(q),
       )
     : registros;
@@ -111,23 +112,23 @@ export function SenVertListScreen(): React.JSX.Element {
         </Text>
       ) : (
         <Text style={[styles.jornadaWarn, { color: colors.warning }]}>
-          Sin jornada activa: el alta de señales verticales puede estar bloqueada en el servidor.
+          Sin jornada activa: el alta de señales horizontales puede estar bloqueada en el servidor.
         </Text>
       )}
 
       <Pressable
         style={[
           styles.cta,
-          { backgroundColor: '#4f9f7a', borderColor: '#4f9f7a', shadowColor: '#4f9f7a' },
+          { backgroundColor: '#111827', borderColor: '#111827', shadowColor: '#111827' },
           !jornada && styles.ctaDis,
         ]}
         onPress={() => openWizard()}
         disabled={!jornada}
       >
-        <Text style={styles.ctaTxt}>＋ Nueva señal vertical</Text>
+        <Text style={styles.ctaTxt}>＋ Nueva señal horizontal</Text>
       </Pressable>
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        Tabla ExistSenVert — requiere tramo (`via_tramos`) y catálogo.
+        Tabla ExistSenHor — requiere tramo (`via_tramos`) y catálogos.
       </Text>
 
       <TextInput
@@ -137,7 +138,7 @@ export function SenVertListScreen(): React.JSX.Element {
         ]}
         value={busqueda}
         onChangeText={setBusqueda}
-        placeholder="Buscar código, vía, estado, id…"
+        placeholder="Buscar código, vía, estado, material, id…"
         placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
       />
@@ -167,15 +168,15 @@ export function SenVertListScreen(): React.JSX.Element {
               },
             ]}
           >
-            <View style={[styles.cardAccent, { backgroundColor: '#4f9f7a' }]} />
+            <View style={[styles.cardAccent, { backgroundColor: '#111827' }]} />
             <View style={styles.titleRow}>
-              <MaterialCommunityIcons name="traffic-cone" size={17} color={colors.secondary} />
-              <Text style={[styles.cod, { color: colors.secondary }]}>{item.codSe || '—'}</Text>
+              <MaterialCommunityIcons name="minus-circle-outline" size={17} color={colors.secondary} />
+              <Text style={[styles.cod, { color: colors.secondary }]}>{item.codSeHor || '—'}</Text>
             </View>
             <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={2}>
               {tramoLabel(item)}
             </Text>
-            <Text style={[styles.est, { color: colors.primary }]}>{item.estado || '— estado'}</Text>
+            <Text style={[styles.est, { color: colors.primary }]}>{item.estadoDem || '— estado'}</Text>
             <Text style={[styles.id, { color: colors.textMuted }]}>{item._id}</Text>
             <View style={styles.row}>
               <Pressable
@@ -259,12 +260,13 @@ const styles = StyleSheet.create({
   },
   cardAccent: { width: 52, height: 4, borderRadius: 999, marginBottom: 12 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cod: { fontSize: 17, fontWeight: '700', color: '#4a148c' },
+  cod: { fontSize: 17, fontWeight: '700', color: '#004d40' },
   meta: { fontSize: 14, color: '#455a64', marginTop: 4 },
-  est: { fontSize: 13, color: '#6a1b9a', marginTop: 4 },
+  est: { fontSize: 13, color: '#00695c', marginTop: 4 },
   id: { fontSize: 11, color: '#90a4ae', marginTop: 6 },
   row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 10 },
   link: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderRadius: 999 },
   linkTxt: { color: '#1565c0', fontWeight: '700' },
   del: { color: '#c62828', fontWeight: '700', paddingVertical: 6 },
 });
+

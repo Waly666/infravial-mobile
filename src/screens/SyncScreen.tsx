@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -8,11 +9,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOfflineEncuestas } from '@/hooks/useOfflineEncuestas';
-import { syncEncuestaOutbox } from '@/services/sync/encuestaSync';
+import type { RootStackParamList } from '@/navigation/types';
+import { syncOutbox } from '@/services/sync/outboxSync';
 import { sqliteSurveyRepository } from '@/storage/offline/sqliteSurveyRepository';
 import type { OfflineSurveyDraft } from '@/types/offline';
 
@@ -32,6 +35,7 @@ function statusLabel(s: OfflineSurveyDraft['status']): string {
 }
 
 export function SyncScreen(): React.JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const online = useOnlineStatus();
   const { list, loading, refresh } = useOfflineEncuestas();
   const [syncing, setSyncing] = useState(false);
@@ -52,7 +56,7 @@ export function SyncScreen(): React.JSX.Element {
     }
     setSyncing(true);
     try {
-      const { enviados, errores } = await syncEncuestaOutbox();
+      const { enviados, errores } = await syncOutbox();
       setSyncMsg(`Listo: ${enviados} enviados, ${errores} con error.`);
       await refresh();
     } catch (e) {
@@ -72,6 +76,46 @@ export function SyncScreen(): React.JSX.Element {
     }
   }
 
+  function openEdit(item: OfflineSurveyDraft): void {
+    const kind = String(item.payload._kind ?? '');
+    if (kind === 'via_tramo') {
+      navigation.navigate('ViaTramoWizard', { draftLocalId: item.localId, draftPayload: item.payload });
+      return;
+    }
+    if (kind === 'caja_insp') {
+      navigation.navigate('CajaInspWizard', { draftLocalId: item.localId, draftPayload: item.payload });
+      return;
+    }
+    if (kind === 'control_sem') {
+      navigation.navigate('ControlSemWizard', { draftLocalId: item.localId, draftPayload: item.payload });
+      return;
+    }
+    if (kind === 'semaforo') {
+      navigation.navigate('SemaforoWizard', { draftLocalId: item.localId, draftPayload: item.payload });
+      return;
+    }
+    setSyncMsg('Este tipo aun no tiene formulario visual. Se mantiene pendiente sin cambios.');
+  }
+
+  function askDelete(item: OfflineSurveyDraft): void {
+    Alert.alert('Eliminar pendiente', '¿Seguro que deseas borrar este registro local?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          setActionId(item.localId);
+          try {
+            await sqliteSurveyRepository.deleteDraft(item.localId);
+            await refresh();
+          } finally {
+            setActionId(null);
+          }
+        },
+      },
+    ]);
+  }
+
   function renderItem({ item }: { item: OfflineSurveyDraft }): React.JSX.Element {
     const tramo = String((item.payload as { idTramoVia?: string }).idTramoVia ?? '—');
     const shortId = item.localId.slice(0, 8);
@@ -86,15 +130,31 @@ export function SyncScreen(): React.JSX.Element {
           Intentos: {item.attemptCount}
           {item.lastError ? ` · ${item.lastError.slice(0, 80)}` : ''}
         </Text>
-        {item.status === 'borrador' ? (
+        <View style={styles.actionsRow}>
+          {item.status === 'borrador' ? (
+            <Pressable
+              style={[styles.miniBtn, actionId === item.localId && styles.disabled]}
+              onPress={() => void toQueue(item)}
+              disabled={actionId === item.localId}
+            >
+              <Text style={styles.miniBtnText}>Pasar a cola de envío</Text>
+            </Pressable>
+          ) : null}
           <Pressable
             style={[styles.miniBtn, actionId === item.localId && styles.disabled]}
-            onPress={() => void toQueue(item)}
+            onPress={() => openEdit(item)}
             disabled={actionId === item.localId}
           >
-            <Text style={styles.miniBtnText}>Pasar a cola de envío</Text>
+            <Text style={styles.miniBtnText}>Editar</Text>
           </Pressable>
-        ) : null}
+          <Pressable
+            style={[styles.miniBtnDel, actionId === item.localId && styles.disabled]}
+            onPress={() => askDelete(item)}
+            disabled={actionId === item.localId}
+          >
+            <Text style={styles.miniBtnDelText}>Eliminar</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -114,7 +174,7 @@ export function SyncScreen(): React.JSX.Element {
         {syncing ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.syncBtnText}>Sincronizar encuestas</Text>
+          <Text style={styles.syncBtnText}>Sincronizar pendientes</Text>
         )}
       </Pressable>
       {syncMsg ? <Text style={styles.syncMsg}>{syncMsg}</Text> : null}
@@ -134,6 +194,7 @@ export function SyncScreen(): React.JSX.Element {
           contentContainerStyle={list.length === 0 ? styles.emptyBox : styles.listPad}
         />
       )}
+
     </View>
   );
 }
@@ -222,4 +283,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#e3f2fd',
   },
   miniBtnText: { color: '#1565c0', fontWeight: '600', fontSize: 13 },
+  actionsRow: { marginTop: 10, flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  miniBtnDel: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#ffebee',
+  },
+  miniBtnDelText: { color: '#c62828', fontWeight: '700', fontSize: 13 },
 });

@@ -46,6 +46,7 @@ import { createViaTramoFormState } from '@/domain/viaTramoFormDefaults';
 import { buildViaTramoCreatePayload, recalcularLongitudDesdeCoords } from '@/domain/viaTramoSubmit';
 import { useAuth } from '@/hooks/useAuth';
 import { useJornadaActiva } from '@/hooks/useJornadaActiva';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { getApiBaseUrl } from '@/config/env';
 import type { RootStackParamList } from '@/navigation/types';
 import type { BarrioDto, ComunaDto, EsquemaPerfilDto, ObsViaDto, ZatDto } from '@/services/api/catalogViaTramoApi';
@@ -67,6 +68,8 @@ import {
   uploadViaTramoFotos,
 } from '@/services/api/viaTramoApi';
 import { captureGeolocation } from '@/services/geo/captureLocation';
+import { enqueueOffline } from '@/services/sync/offlineOutbox';
+import { sqliteSurveyRepository } from '@/storage/offline/sqliteSurveyRepository';
 import type { EncuestaRespuestaItem, PreguntaEncViaDto } from '@/types/encuesta';
 
 const TOTAL_PASOS = 10;
@@ -90,7 +93,10 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'ViaTramoWizard'>>();
   const editId = route.params?.id;
+  const draftLocalId = route.params?.draftLocalId;
+  const draftPayload = route.params?.draftPayload as Record<string, unknown> | undefined;
   const { user } = useAuth();
+  const online = useOnlineStatus();
   const { jornada, loading: jornadaLoading } = useJornadaActiva();
   const [paso, setPaso] = useState(1);
   const [form, setForm] = useState<Record<string, unknown>>(() => createViaTramoFormState(null));
@@ -118,12 +124,12 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
   const apiBase = getApiBaseUrl();
 
   useEffect(() => {
-    if (editId) return;
+    if (editId || draftPayload) return;
     setForm(createViaTramoFormState(jornada));
     setPendBase(0);
     setPendAlt(0);
     setFotoSlots([null, null, null]);
-  }, [jornada?._id, editId]);
+  }, [jornada?._id, editId, draftPayload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +153,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
         setObsVias(o);
         setPreguntas(p);
         setForm((f) => {
-          if (editId) return f;
+          if (editId || draftPayload) return f;
           return {
             ...f,
             respuestas: p.map((q) => ({
@@ -169,7 +175,45 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [jornada?._id, jornada?.codMunicipio, editId]);
+  }, [jornada?._id, jornada?.codMunicipio, editId, draftPayload]);
+
+  useEffect(() => {
+    if (!draftPayload || catalogLoading || preguntas.length === 0) return;
+    const body = { ...((draftPayload.body ?? {}) as Record<string, unknown>) };
+    const geo = body.ubicacion as
+      | { type?: string; coordinates?: [number, number][] }
+      | undefined;
+    if (geo?.type === 'LineString' && Array.isArray(geo.coordinates) && geo.coordinates.length >= 2) {
+      const inicio = geo.coordinates[0];
+      const fin = geo.coordinates[1];
+      if (Array.isArray(inicio) && inicio.length === 2) {
+        body.lng_inicio = Number(inicio[0]);
+        body.lat_inicio = Number(inicio[1]);
+      }
+      if (Array.isArray(fin) && fin.length === 2) {
+        body.lng_fin = Number(fin[0]);
+        body.lat_fin = Number(fin[1]);
+      }
+    }
+    const respuestas = Array.isArray(draftPayload.respuestas)
+      ? (draftPayload.respuestas as EncuestaRespuestaItem[])
+      : [];
+    const fotos = Array.isArray(draftPayload.fotos)
+      ? (draftPayload.fotos as Array<{ uri?: string }>)
+      : [];
+    setForm({
+      ...createViaTramoFormState(jornada),
+      ...body,
+      respuestas: respuestas.length > 0 ? respuestas : preguntas.map((q) => ({ idPregunta: q._id, consecutivo: q.consecutivo, valorRta: '' })),
+    });
+    const nextSlots: (ImagePicker.ImagePickerAsset | null)[] = [null, null, null];
+    fotos.slice(0, 3).forEach((f, idx) => {
+      if (f?.uri) nextSlots[idx] = { uri: f.uri } as ImagePicker.ImagePickerAsset;
+    });
+    setFotoSlots(nextSlots);
+    setPendBase(0);
+    setPendAlt(0);
+  }, [draftPayload, catalogLoading, preguntas, jornada]);
 
   useEffect(() => {
     if (!editId || catalogLoading || preguntas.length === 0) return;
@@ -459,6 +503,44 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
     setSaving(true);
     try {
       const payload = buildViaTramoCreatePayload(form, encuestador || 'encuestador');
+      const rawResp = (form.respuestas as EncuestaRespuestaItem[] | undefined) ?? [];
+      const respuestas = rawResp.filter((r) => Boolean(r.valorRta));
+      const files = fotosList.map((a, idx) => ({
+        uri: a.uri,
+        name: a.fileName ?? `tramo-foto-${idx + 1}.jpg`,
+        type: a.mimeType ?? 'image/jpeg',
+      }));
+
+      if (draftLocalId) {
+        await sqliteSurveyRepository.updatePayload(draftLocalId, {
+          ...(draftPayload ?? {}),
+          _kind: 'via_tramo',
+          op: String(draftPayload?.op ?? 'create'),
+          id: (draftPayload?.id as string | null | undefined) ?? null,
+          body: payload,
+          respuestas,
+          fotos: files,
+        });
+        Alert.alert('Listo', 'Pendiente actualizado para sincronización.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+        return;
+      }
+
+      if (!online) {
+        await enqueueOffline('via_tramo', {
+          op: editId ? 'update' : 'create',
+          id: editId ?? null,
+          body: payload,
+          respuestas,
+          fotos: files,
+        });
+        Alert.alert('Sin conexión', 'Guardado en cola local. Se enviará al sincronizar.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+        return;
+      }
+
       let idTramo: string;
       if (editId) {
         await updateViaTramo(editId, payload);
@@ -469,8 +551,6 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
       }
       const warnings: string[] = [];
 
-      const rawResp = (form.respuestas as EncuestaRespuestaItem[] | undefined) ?? [];
-      const respuestas = rawResp.filter((r) => Boolean(r.valorRta));
       if (respuestas.length > 0) {
         try {
           await postEncuestaVial({ idTramoVia: idTramo, respuestas });
@@ -481,11 +561,6 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
       if (fotosList.length > 0) {
         try {
-          const files = fotosList.map((a, idx) => ({
-            uri: a.uri,
-            name: a.fileName ?? `tramo-foto-${idx + 1}.jpg`,
-            type: a.mimeType ?? 'image/jpeg',
-          }));
           const urls = await uploadViaTramoFotos(files);
           await updateViaTramoFotos(idTramo, urls);
         } catch (e) {
@@ -595,7 +670,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
     <View style={styles.root}>
       <View style={styles.progress}>
         <Text style={styles.progressTxt}>
-          Paso {paso} / {TOTAL_PASOS} — {editId ? 'Editar inventario' : 'Inventario (via_tramos)'}
+          Paso {paso} / {TOTAL_PASOS} — {draftLocalId ? 'Revisar pendiente' : editId ? 'Editar inventario' : 'Inventario (via_tramos)'}
         </Text>
         {catalogLoading ? <Text style={styles.progressSub}>Cargando catálogos…</Text> : null}
         {editLoading ? <Text style={styles.progressSub}>Cargando tramo…</Text> : null}
@@ -694,6 +769,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               placeholder="Número 1"
               value={nom.numero1 ?? ''}
               onChangeText={(t) => setNomenclatura({ numero1: t })}
+              keyboardType="number-pad"
             />
             {chipRow('Conector', nom.conector ?? '', CONECTORES, (v) => setNomenclatura({ conector: v }))}
             {chipRow('Tipo vía 2', nom.tipoVia2 ?? '', TIPOS_NOMENCLATURA, (v) => setNomenclatura({ tipoVia2: v }))}
@@ -702,6 +778,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               placeholder="Número 2"
               value={nom.numero2 ?? ''}
               onChangeText={(t) => setNomenclatura({ numero2: t })}
+              keyboardType="number-pad"
             />
             {chipRow('Conector 2', nom.conector2 ?? '', CONECTOR2_NOM, (v) => setNomenclatura({ conector2: v }))}
             {chipRow('Tipo vía 3', nom.tipoVia3 ?? '', TIPOS_NOMENCLATURA, (v) => setNomenclatura({ tipoVia3: v }))}
@@ -710,6 +787,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               placeholder="Número 3"
               value={nom.numero3 ?? ''}
               onChangeText={(t) => setNomenclatura({ numero3: t })}
+              keyboardType="number-pad"
             />
             {nom.completa ? (
               <Text style={styles.nomPreview}>📍 {nom.completa}</Text>
@@ -1094,14 +1172,14 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f7f8fa' },
-  progress: { padding: 12, backgroundColor: '#e3f2fd' },
-  progressTxt: { fontWeight: '700', color: '#1565c0' },
-  progressSub: { fontSize: 12, color: '#1565c0', marginTop: 4 },
+  root: { flex: 1, backgroundColor: '#0f141a' },
+  progress: { padding: 12, backgroundColor: '#18212b', borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
+  progressTxt: { fontWeight: '700', color: '#4a8bc0' },
+  progressSub: { fontSize: 12, color: '#8ea2b4', marginTop: 4 },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 32 },
-  h2: { fontSize: 18, fontWeight: '700', color: '#1a2332', marginBottom: 6 },
-  sub: { fontSize: 13, color: '#546e7a', marginBottom: 12, lineHeight: 18 },
+  h2: { fontSize: 18, fontWeight: '700', color: '#e8eef5', marginBottom: 6 },
+  sub: { fontSize: 13, color: '#a7bacb', marginBottom: 12, lineHeight: 18 },
   block: { marginBottom: 12 },
   lbl: { fontSize: 13, fontWeight: '600', color: '#37474f', marginBottom: 6 },
   lblSmall: { fontSize: 12, fontWeight: '600', color: '#546e7a', marginBottom: 4 },
@@ -1152,8 +1230,8 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    backgroundColor: '#fff',
+    borderTopColor: '#2d3b49',
+    backgroundColor: '#18212b',
   },
   navBtn: {
     flex: 1,
@@ -1168,7 +1246,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: '#1e5a8a',
+    backgroundColor: '#4a8bc0',
   },
   navTxt: { fontWeight: '700', color: '#455a64' },
   navTxtPri: { fontWeight: '700', color: '#fff' },

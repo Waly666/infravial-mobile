@@ -1,12 +1,15 @@
 import { getApiBaseUrl } from '@/config/env';
 import { getAuthApiClient } from '@/services/api/client';
+import { fetchArrayWithOfflineCache } from '@/services/offline/apiCache';
 import * as tokenStorage from '@/services/auth/tokenStorage';
 import type { ExistSenVertListItemDto } from '@/types/senVert';
 
 export async function fetchExistSenVertRegistros(): Promise<ExistSenVertListItemDto[]> {
-  const client = getAuthApiClient();
-  const { data } = await client.get<{ registros?: ExistSenVertListItemDto[] }>('/sen-vert');
-  return Array.isArray(data.registros) ? data.registros : [];
+  return fetchArrayWithOfflineCache('sen-vert:list', async () => {
+    const client = getAuthApiClient();
+    const { data } = await client.get<{ registros?: ExistSenVertListItemDto[] }>('/sen-vert');
+    return Array.isArray(data.registros) ? data.registros : [];
+  });
 }
 
 export async function fetchExistSenVertById(id: string): Promise<ExistSenVertListItemDto | null> {

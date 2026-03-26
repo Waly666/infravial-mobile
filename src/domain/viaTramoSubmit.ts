@@ -52,6 +52,13 @@ export function buildViaTramoCreatePayload(
     }
   }
 
+  // No forzar estado de iluminacion: enviar null cuando no aplica o viene vacio.
+  if (body.iluminacArtificial !== true) {
+    body.estadoIluminacion = null;
+  } else if (body.estadoIluminacion === '' || body.estadoIluminacion === undefined) {
+    body.estadoIluminacion = null;
+  }
+
   const danos = Array.isArray(body.danos) ? body.danos : [];
   body.danos = danos.filter((d: unknown) => {
     if (d && typeof d === 'object' && 'dano' in d) {

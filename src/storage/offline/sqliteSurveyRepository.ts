@@ -86,6 +86,22 @@ export class SqliteSurveyRepository implements IOfflineSurveyRepository {
       [err, now, localId],
     );
   }
+
+  async updatePayload(localId: string, payload: Record<string, unknown>): Promise<void> {
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `UPDATE encuesta_outbox
+       SET payload = ?, status = 'pendiente', last_error = NULL, updated_at = ?
+       WHERE local_id = ?`,
+      [JSON.stringify(payload), now, localId],
+    );
+  }
+
+  async deleteDraft(localId: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM encuesta_outbox WHERE local_id = ?', [localId]);
+  }
 }
 
 export const sqliteSurveyRepository = new SqliteSurveyRepository();

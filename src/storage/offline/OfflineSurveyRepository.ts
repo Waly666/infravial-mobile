@@ -9,4 +9,6 @@ export interface IOfflineSurveyRepository {
   listForSync(): Promise<OfflineSurveyDraft[]>;
   markStatus(localId: string, status: OfflineSurveyDraft['status'], err?: string): Promise<void>;
   bumpAttempt(localId: string, err: string): Promise<void>;
+  updatePayload(localId: string, payload: Record<string, unknown>): Promise<void>;
+  deleteDraft(localId: string): Promise<void>;
 }

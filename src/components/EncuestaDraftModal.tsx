@@ -253,7 +253,7 @@ export function EncuestaDraftModal({
         status: asQueue ? 'pendiente' : 'borrador',
         createdAt: now,
         updatedAt: now,
-        payload: payload as unknown as Record<string, unknown>,
+        payload: { _kind: 'encuesta_vial', ...(payload as unknown as Record<string, unknown>) },
         attemptCount: 0,
       });
       resetForm();

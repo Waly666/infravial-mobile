@@ -1,4 +1,5 @@
 import { getAuthApiClient } from '@/services/api/client';
+import { fetchArrayWithOfflineCache } from '@/services/offline/apiCache';
 import type { EncuestaVialApiBody, PreguntaEncViaDto } from '@/types/encuesta';
 import { sortPreguntasByConsecutivo } from '@/utils/sortPreguntasEnc';
 
@@ -7,10 +8,12 @@ import { sortPreguntasByConsecutivo } from '@/utils/sortPreguntasEnc';
  * El reporte Angular también puede usar `/encuesta-vial/preguntas`; el catálogo es el canónico del formulario.
  */
 export async function fetchPreguntasEncuesta(): Promise<PreguntaEncViaDto[]> {
-  const client = getAuthApiClient();
-  const { data } = await client.get<{ datos?: PreguntaEncViaDto[] }>('/catalogos/preguntas-enc');
-  const raw = Array.isArray(data.datos) ? data.datos : [];
-  return sortPreguntasByConsecutivo(raw);
+  return fetchArrayWithOfflineCache('catalog:preguntas-enc', async () => {
+    const client = getAuthApiClient();
+    const { data } = await client.get<{ datos?: PreguntaEncViaDto[] }>('/catalogos/preguntas-enc');
+    const raw = Array.isArray(data.datos) ? data.datos : [];
+    return sortPreguntasByConsecutivo(raw);
+  });
 }
 
 /** Respuestas ya guardadas de un tramo (reporte / edición). */

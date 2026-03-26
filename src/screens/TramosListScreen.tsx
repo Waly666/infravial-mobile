@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
 import { EncuestaDraftModal } from '@/components/EncuestaDraftModal';
@@ -18,10 +19,12 @@ import { useJornadaActiva } from '@/hooks/useJornadaActiva';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { RootStackParamList } from '@/navigation/types';
 import { deleteViaTramo, fetchViaTramos } from '@/services/api/viaTramoApi';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
 
 export function TramosListScreen(): React.JSX.Element {
   const navigation = useNavigation();
+  const { colors, theme } = useAppTheme();
   const { user } = useAuth();
   const online = useOnlineStatus();
   const { jornada, refresh: refreshJornada } = useJornadaActiva();
@@ -97,28 +100,47 @@ export function TramosListScreen(): React.JSX.Element {
 
   function renderItem({ item }: { item: ViaTramoListItemDto }): React.JSX.Element {
     return (
-      <View style={styles.card}>
-        <Text style={styles.via}>{item.via || '—'}</Text>
-        <Text style={styles.meta} numberOfLines={2}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            shadowColor: theme === 'dark' ? '#000' : '#8aa3bb',
+          },
+        ]}
+      >
+        <View style={[styles.cardAccent, { backgroundColor: '#1565c0' }]} />
+        <View style={styles.titleRow}>
+          <MaterialCommunityIcons name="road-variant" size={18} color={colors.primary} />
+          <Text style={[styles.via, { color: colors.text }]}>{item.via || '—'}</Text>
+        </View>
+        <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={2}>
           {item.nomenclatura?.completa || '—'} · {item.municipio || '—'}
         </Text>
-        <Text style={styles.id}>{item._id}</Text>
+        <Text style={[styles.id, { color: colors.textMuted }]}>{item._id}</Text>
         <View style={styles.cardActions}>
           <Pressable
-            style={styles.mini}
+            style={[styles.mini, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
             onPress={() => {
               setEncuestaTramoId(item._id);
               setEncuestaOpen(true);
             }}
           >
-            <Text style={styles.miniTxt}>Encuesta (secundario)</Text>
+            <Text style={[styles.miniTxt, { color: colors.text }]}>Encuesta (secundario)</Text>
           </Pressable>
-          <Pressable style={styles.miniLink} onPress={() => openEditTramo(item._id)}>
-            <Text style={styles.miniLinkTxt}>Editar</Text>
+          <Pressable
+            style={[styles.miniLink, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+            onPress={() => openEditTramo(item._id)}
+          >
+            <Text style={[styles.miniLinkTxt, { color: colors.primary }]}>Editar</Text>
           </Pressable>
           {canAdmin ? (
-            <Pressable onPress={() => void eliminarTramo(item._id)}>
-              <Text style={styles.miniDel}>Eliminar</Text>
+            <Pressable
+              style={[styles.miniLink, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+              onPress={() => void eliminarTramo(item._id)}
+            >
+              <Text style={[styles.miniDel, { color: colors.danger }]}>Eliminar</Text>
             </Pressable>
           ) : null}
         </View>
@@ -127,36 +149,55 @@ export function TramosListScreen(): React.JSX.Element {
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.banner}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.banner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[styles.dot, online ? styles.dotOn : styles.dotOff]} />
-        <Text style={styles.bannerTxt}>{online ? 'En línea' : 'Sin conexión'}</Text>
+        <Text style={[styles.bannerTxt, { color: colors.text }]}>
+          {online ? 'En línea' : 'Sin conexión'}
+        </Text>
+        <View style={[styles.countPill, { backgroundColor: colors.surfaceAlt }]}>
+          <Text style={[styles.countPillTxt, { color: colors.primary }]}>{filtrados.length}</Text>
+        </View>
       </View>
 
       {jornada ? (
-        <Text style={styles.jornadaOk}>
+        <Text style={[styles.jornadaOk, { color: colors.success }]}>
           Jornada: {jornada.municipio} — {jornada.supervisor}
         </Text>
       ) : (
-        <Text style={styles.jornadaWarn}>
+        <Text style={[styles.jornadaWarn, { color: colors.warning }]}>
           Sin jornada activa: no podrás registrar tramos nuevos hasta que exista una EN PROCESO
           (admin).
         </Text>
       )}
 
-      <Pressable style={[styles.cta, !jornada && styles.ctaDis]} onPress={openNewTramo} disabled={!jornada}>
+      <Pressable
+        style={[
+          styles.cta,
+          { backgroundColor: '#1565c0', borderColor: '#1565c0', shadowColor: '#1565c0' },
+          !jornada && styles.ctaDis,
+        ]}
+        onPress={openNewTramo}
+        disabled={!jornada}
+      >
         <Text style={styles.ctaTxt}>＋ Nuevo tramo vial</Text>
       </Pressable>
-      <Text style={styles.ctaHint}>Prioridad: tabla via_tramos. La encuesta va después.</Text>
+      <Text style={[styles.ctaHint, { color: colors.textMuted }]}>
+        Prioridad: tabla via_tramos. La encuesta va después.
+      </Text>
 
       <TextInput
-        style={styles.search}
+        style={[
+          styles.search,
+          { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
+        ]}
         value={busqueda}
         onChangeText={setBusqueda}
         placeholder="Buscar vía, municipio, nomenclatura, id…"
+        placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
       />
-      <Text style={styles.count}>{filtrados.length} registros</Text>
+      <Text style={[styles.count, { color: colors.textMuted }]}>{filtrados.length} registros</Text>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 24 }} />
@@ -166,7 +207,11 @@ export function TramosListScreen(): React.JSX.Element {
           keyExtractor={(i) => i._id}
           renderItem={renderItem}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} />}
-          ListEmptyComponent={<Text style={styles.empty}>No hay tramos o falló la carga.</Text>}
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: colors.textMuted }]}>
+              No hay tramos o falló la carga.
+            </Text>
+          }
           contentContainerStyle={styles.listPad}
         />
       )}
@@ -193,7 +238,13 @@ const styles = StyleSheet.create({
     gap: 8,
     alignSelf: 'flex-start',
     marginBottom: 10,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
+  countPill: { marginLeft: 'auto', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  countPillTxt: { fontWeight: '800', fontSize: 12 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   dotOn: { backgroundColor: '#2e7d32' },
   dotOff: { backgroundColor: '#c62828' },
@@ -201,10 +252,14 @@ const styles = StyleSheet.create({
   jornadaOk: { color: '#2e7d32', fontWeight: '600', marginBottom: 10 },
   jornadaWarn: { color: '#b28704', marginBottom: 10, lineHeight: 20 },
   cta: {
-    backgroundColor: '#1e5a8a',
-    paddingVertical: 14,
-    borderRadius: 10,
+    paddingVertical: 15,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
+    elevation: 5,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
   },
   ctaDis: { opacity: 0.5 },
   ctaTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
@@ -223,12 +278,18 @@ const styles = StyleSheet.create({
   empty: { textAlign: 'center', marginTop: 32, color: '#90a4ae' },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 10,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 12,
+    borderWidth: 1,
     borderColor: '#e0e0e0',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 3,
   },
+  cardAccent: { width: 52, height: 4, borderRadius: 999, marginBottom: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   via: { fontSize: 16, fontWeight: '800', color: '#1a2332' },
   meta: { marginTop: 4, fontSize: 13, color: '#546e7a' },
   id: { marginTop: 6, fontSize: 10, color: '#90a4ae' },
@@ -240,9 +301,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: 10,
   },
-  mini: { paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#eceff1', borderRadius: 8 },
+  mini: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#eceff1',
+    borderRadius: 999,
+    borderWidth: 1,
+  },
   miniTxt: { fontSize: 12, fontWeight: '700', color: '#455a64' },
-  miniLink: { paddingVertical: 8, paddingHorizontal: 8 },
+  miniLink: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
   miniLinkTxt: { fontSize: 12, fontWeight: '700', color: '#1565c0' },
   miniDel: { fontSize: 12, fontWeight: '700', color: '#c62828' },
 });

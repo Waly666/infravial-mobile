@@ -1,8 +1,10 @@
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
+import { useNetworkMode } from '@/connectivity/NetworkModeProvider';
 
 export function useOnlineStatus(): boolean {
-  const [online, setOnline] = useState(true);
+  const { mode } = useNetworkMode();
+  const [networkOnline, setNetworkOnline] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -10,11 +12,11 @@ export function useOnlineStatus(): boolean {
       if (!mounted) {
         return;
       }
-      setOnline(state.isConnected === true && state.isInternetReachable !== false);
+      setNetworkOnline(state.isConnected === true && state.isInternetReachable !== false);
     });
     NetInfo.fetch().then((state) => {
       if (mounted) {
-        setOnline(state.isConnected === true && state.isInternetReachable !== false);
+        setNetworkOnline(state.isConnected === true && state.isInternetReachable !== false);
       }
     });
     return () => {
@@ -23,5 +25,6 @@ export function useOnlineStatus(): boolean {
     };
   }, []);
 
-  return online;
+  if (mode === 'offline') return false;
+  return networkOnline;
 }
