@@ -1,0 +1,4 @@
+# Copia a .env y ajusta. Expo expone solo variables con prefijo EXPO_PUBLIC_ al bundle.
+# Android emulador → host: 10.0.2.2 ; dispositivo físico → IP de tu PC en la LAN.
+
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000
