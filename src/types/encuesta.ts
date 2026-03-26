@@ -26,3 +26,19 @@ export interface PreguntaEncViaDto {
   consecutivo: string;
   enunciado: string;
 }
+
+export function toApiValorRta(value: unknown): string {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (raw === 'si' || raw === 'sí') return 'Si';
+  if (raw === 'no') return 'No';
+  if (raw === 'na' || raw === 'n/a') return 'N/A';
+  return String(value ?? '').trim();
+}
+
+export function fromApiValorRta(value: unknown): string {
+  const raw = String(value ?? '').trim().toLowerCase();
+  if (raw === 'si' || raw === 'sí') return 'si';
+  if (raw === 'no') return 'no';
+  if (raw === 'na' || raw === 'n/a') return 'na';
+  return '';
+}

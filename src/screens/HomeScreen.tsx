@@ -1,17 +1,22 @@
 import { useCallback } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import { useApiBaseUrlConfig } from '@/config/ApiBaseUrlProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { useJornadaActiva } from '@/hooks/useJornadaActiva';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import type { RootStackParamList } from '@/navigation/types';
 import { useNetworkMode } from '@/connectivity/NetworkModeProvider';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 export function HomeScreen(): React.JSX.Element {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, logout, busy } = useAuth();
   const { mode, setMode, colors } = useAppTheme();
   const { mode: networkMode, setMode: setNetworkMode } = useNetworkMode();
+  const { apiBaseUrl, hasCustomApiBaseUrl } = useApiBaseUrlConfig();
   const online = useOnlineStatus();
   const { jornada, loading: jornadaLoading, error: jornadaErr, refresh: refreshJornada } =
     useJornadaActiva();
@@ -41,6 +46,27 @@ export function HomeScreen(): React.JSX.Element {
       <Text style={[styles.meta, { color: colors.textMuted }]}>
         Cédula: {user?.user} · Rol: {user?.rol}
       </Text>
+
+      <Text style={[styles.section, { color: colors.text }]}>Servidor/API</Text>
+      <View
+        style={[
+          styles.jornadaCard,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <Text style={[styles.jornadaLine, { color: colors.primary }]}>
+          {apiBaseUrl || 'Sin configurar'}
+        </Text>
+        <Text style={[styles.jornadaSub, { color: colors.textMuted }]}>
+          {hasCustomApiBaseUrl ? 'Valor personalizado en este teléfono.' : 'Valor por defecto del proyecto.'}
+        </Text>
+        <Pressable
+          style={[styles.configLink, { borderColor: colors.primary }]}
+          onPress={() => navigation.navigate('ApiConfig')}
+        >
+          <Text style={[styles.configLinkTxt, { color: colors.primary }]}>Abrir configuración</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.themeRow}>
         <Text style={[styles.section, { marginTop: 0, color: colors.text }]}>Apariencia</Text>
@@ -281,5 +307,16 @@ const styles = StyleSheet.create({
   outlineText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  configLink: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  configLinkTxt: {
+    fontWeight: '700',
   },
 });

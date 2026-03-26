@@ -1,4 +1,4 @@
-import type { EncuestaLocalPayload, EncuestaVialApiBody } from '@/types/encuesta';
+import { toApiValorRta, type EncuestaLocalPayload, type EncuestaVialApiBody } from '@/types/encuesta';
 import type { GeolocationCapture } from '@/types/geo';
 
 function formatGeoNote(g: GeolocationCapture): string {
@@ -11,7 +11,9 @@ function formatGeoNote(g: GeolocationCapture): string {
 export function localPayloadToApiBody(payload: Record<string, unknown>): EncuestaVialApiBody {
   const p = payload as unknown as EncuestaLocalPayload;
   const idTramoVia = String(p.idTramoVia ?? '').trim();
-  const respuestas = Array.isArray(p.respuestas) ? p.respuestas.map((r) => ({ ...r })) : [];
+  const respuestas = Array.isArray(p.respuestas)
+    ? p.respuestas.map((r) => ({ ...r, valorRta: toApiValorRta(r.valorRta) }))
+    : [];
   const geo = p._meta?.capturaGps;
   if (geo && respuestas.length > 0) {
     const note = formatGeoNote(geo);

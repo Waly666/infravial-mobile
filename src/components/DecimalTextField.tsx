@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 const styles = StyleSheet.create({
@@ -24,6 +24,23 @@ export function displayDecimalText(value: unknown, variant: 'medida' | 'coord' |
   return String(n);
 }
 
+function comparableDecimalValue(input: string, variant: 'medida' | 'coord' | 'pend'): string {
+  const raw = input.trim().replace(',', '.');
+  if (!raw) return variant === 'medida' ? '' : '0';
+  const n = parseFloat(raw);
+  if (!Number.isFinite(n)) return raw;
+  const rounded = Math.round(n * 1000000) / 1000000;
+  if (variant === 'medida' && rounded === 0) return '';
+  return String(rounded);
+}
+
+function preserveDecimalText(input: string): string {
+  const raw = input.trim().replace(',', '.');
+  if (raw.startsWith('-.')) return raw.replace('-.', '-0.');
+  if (raw.startsWith('.')) return `0${raw}`;
+  return raw;
+}
+
 /** Valor numérico al salir del campo (permite escribir decimales sin perder el punto a mitad de frase). */
 export function DecimalTextField(props: {
   label: string;
@@ -35,30 +52,41 @@ export function DecimalTextField(props: {
 }): React.JSX.Element {
   const { label, small, value, variant, onCommit, hint } = props;
   const [text, setText] = useState(() => displayDecimalText(value, variant));
+  const keepVisualRef = useRef<string | null>(null);
+
   useEffect(() => {
-    setText(displayDecimalText(value, variant));
+    const next = displayDecimalText(value, variant);
+    if (keepVisualRef.current && comparableDecimalValue(keepVisualRef.current, variant) === comparableDecimalValue(next, variant)) {
+      setText(keepVisualRef.current);
+      return;
+    }
+    setText(next);
   }, [value, variant]);
 
   function flush(): void {
-    const raw = text.trim().replace(',', '.');
+    const raw = preserveDecimalText(text);
     if (raw === '' || raw === '.' || raw === '-') {
       if (variant === 'coord') {
         onCommit(null);
+        keepVisualRef.current = '';
         setText('');
       } else {
         onCommit(0);
-        setText(variant === 'medida' ? '' : '0');
+        keepVisualRef.current = variant === 'medida' ? '' : '0';
+        setText(keepVisualRef.current);
       }
       return;
     }
     const n = parseFloat(raw);
     if (!Number.isFinite(n)) {
+      keepVisualRef.current = null;
       setText(displayDecimalText(value, variant));
       return;
     }
     const rounded = Math.round(n * 1000000) / 1000000;
     onCommit(rounded);
-    setText(variant === 'medida' && rounded === 0 ? '' : String(rounded));
+    keepVisualRef.current = variant === 'medida' && rounded === 0 ? '' : raw;
+    setText(keepVisualRef.current);
   }
 
   return (

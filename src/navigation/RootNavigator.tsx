@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { AppTabs } from '@/navigation/AppTabs';
 import type { RootStackParamList } from '@/navigation/types';
+import { ApiConfigScreen } from '@/screens/ApiConfigScreen';
 import { CajaInspWizardScreen } from '@/screens/CajaInspWizardScreen';
 import { ControlSemWizardScreen } from '@/screens/ControlSemWizardScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
@@ -71,7 +72,14 @@ export function RootNavigator(): React.JSX.Element {
 
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
+          headerTitleAlign: 'center',
+        }}
+      >
         {user ? (
           <>
             <Stack.Screen name="MainTabs" component={AppTabs} options={{ headerShown: false }} />
@@ -107,8 +115,22 @@ export function RootNavigator(): React.JSX.Element {
             />
           </>
         ) : (
-          <Stack.Screen name="Login" component={LoginScreen} />
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen
+              name="ApiConfig"
+              component={ApiConfigScreen}
+              options={{ title: 'Configuración', headerShown: true }}
+            />
+          </>
         )}
+        {user ? (
+          <Stack.Screen
+            name="ApiConfig"
+            component={ApiConfigScreen}
+            options={{ title: 'Configuración', headerShown: true }}
+          />
+        ) : null}
       </Stack.Navigator>
     </NavigationContainer>
   );

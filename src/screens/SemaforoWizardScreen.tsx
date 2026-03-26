@@ -18,6 +18,7 @@ import { enqueueOffline } from '@/services/sync/offlineOutbox';
 import { sqliteSurveyRepository } from '@/storage/offline/sqliteSurveyRepository';
 import { fetchViaTramos } from '@/services/api/viaTramoApi';
 import { captureGeolocation } from '@/services/geo/captureLocation';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ControlSemDto } from '@/types/controlSem';
 import type { CaraSemaforoDto, ObsSemaforoDto, SemaforoDto } from '@/types/semaforo';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
@@ -63,6 +64,7 @@ export function SemaforoWizardScreen(): React.JSX.Element {
   const draftPayload = route.params?.draftPayload as Record<string, unknown> | undefined;
   const online = useOnlineStatus();
   const { jornada } = useJornadaActiva();
+  const { colors } = useAppTheme();
   const apiBase = getApiBaseUrl();
   const [form, setForm] = useState<Record<string, unknown>>(() => createSemaforoFormState(null));
   const [tramos, setTramos] = useState<ViaTramoListItemDto[]>([]);
@@ -169,8 +171,8 @@ export function SemaforoWizardScreen(): React.JSX.Element {
   function chipRow(label: string, value: string, opts: readonly string[], key: string): React.JSX.Element {
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
-        <ScrollView horizontal>{opts.map((o) => <Pressable key={o} style={[styles.chip, value === o && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, [key]: o }))}><Text style={[styles.chipTxt, value === o && styles.chipTxtOn]}>{o}</Text></Pressable>)}</ScrollView>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
+        <ScrollView horizontal>{opts.map((o) => <Pressable key={o} style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, [key]: o }))}><Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]}>{o}</Text></Pressable>)}</ScrollView>
       </View>
     );
   }
@@ -372,38 +374,38 @@ export function SemaforoWizardScreen(): React.JSX.Element {
     finally { setSaving(false); }
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator /></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator /></View>;
   const carasList: CaraSemaforoDto[] = ((form.caras as CaraSemaforoDto[]) ?? []).length > 0
     ? ((form.caras as CaraSemaforoDto[]) ?? [])
     : Array.from({ length: Number(form.numCaras ?? 1) }, () => ({} as CaraSemaforoDto));
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ padding: 14 }}>
-        <Pressable style={styles.pick} onPress={() => setTramoOpen(true)}>
-          <Text>
+        <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setTramoOpen(true)}>
+          <Text style={{ color: colors.text }}>
             {tramoSeleccionado
               ? `Tramo: ${tramoSeleccionado.via ?? tramoSeleccionado.nomenclatura?.completa ?? tramoSeleccionado._id}`
               : 'Seleccionar tramo'}
           </Text>
         </Pressable>
-        <Pressable style={styles.pick} onPress={() => setCtrlOpen(true)}>
-          <Text>
+        <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setCtrlOpen(true)}>
+          <Text style={{ color: colors.text }}>
             {controlSeleccionado
               ? `Control: #${controlSeleccionado.numExterno ?? '—'}`
               : 'Seleccionar control (opcional)'}
           </Text>
         </Pressable>
-        <Pressable style={styles.pick} onPress={() => void gps()}><Text>Capturar GPS</Text></Pressable>
+        <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => void gps()}><Text style={{ color: colors.text }}>Capturar GPS</Text></Pressable>
         <DecimalTextField label="Lat" value={form.lat} variant="coord" onCommit={(n) => setForm((f) => ({ ...f, lat: n }))} />
         <DecimalTextField label="Lng" value={form.lng} variant="coord" onCommit={(n) => setForm((f) => ({ ...f, lng: n }))} />
         <DecimalTextField label="Número externo" value={form.numExterno} variant="medida" onCommit={(n) => setForm((f) => ({ ...f, numExterno: n }))} />
-        <Text style={styles.lbl}>Control de referencia</Text>
-        <TextInput style={styles.inp} value={String(form.controlRef ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, controlRef: v }))} />
-        <Text style={styles.lbl}>Sitio</Text>
-        <TextInput style={styles.inp} value={String(form.sitio ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, sitio: v }))} />
-        <Text style={styles.lbl}>IP/Radio</Text>
-        <TextInput style={styles.inp} value={String(form.ipRadio ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, ipRadio: v }))} />
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Control de referencia</Text>
+        <TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={String(form.controlRef ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, controlRef: v }))} placeholderTextColor={colors.textMuted} />
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Sitio</Text>
+        <TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={String(form.sitio ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, sitio: v }))} placeholderTextColor={colors.textMuted} />
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>IP/Radio</Text>
+        <TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={String(form.ipRadio ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, ipRadio: v }))} placeholderTextColor={colors.textMuted} />
         <View style={styles.block}>
           <Text style={styles.lbl}>Semáforo funciona</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -448,16 +450,16 @@ export function SemaforoWizardScreen(): React.JSX.Element {
         </View>
         {form.dispositivoAuditivo ? chipRow('Estado dispositivo auditivo', String(form.estadoDispAud ?? ''), ESTADOS, 'estadoDispAud') : null}
 
-        <Text style={styles.lbl}>Fotos accesorios</Text>
-        {fotoSem?.uri ? <Image source={{ uri: fotoSem.uri }} style={styles.img} /> : form.urlFotoSemaforo && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoSemaforo}` }} style={styles.img} /> : null}
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Fotos accesorios</Text>
+        {fotoSem?.uri ? <Image source={{ uri: fotoSem.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoSemaforo && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoSemaforo}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('sem')}><Text style={styles.camTxt}>Foto semáforo</Text></Pressable>
-        {fotoSop?.uri ? <Image source={{ uri: fotoSop.uri }} style={styles.img} /> : form.urlFotoSoporte && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoSoporte}` }} style={styles.img} /> : null}
+        {fotoSop?.uri ? <Image source={{ uri: fotoSop.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoSoporte && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoSoporte}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('sop')}><Text style={styles.camTxt}>Foto soporte</Text></Pressable>
-        {fotoAnc?.uri ? <Image source={{ uri: fotoAnc.uri }} style={styles.img} /> : form.urlFotoAnclaje && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoAnclaje}` }} style={styles.img} /> : null}
+        {fotoAnc?.uri ? <Image source={{ uri: fotoAnc.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoAnclaje && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoAnclaje}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('anc')}><Text style={styles.camTxt}>Foto anclaje</Text></Pressable>
-        {fotoPul?.uri ? <Image source={{ uri: fotoPul.uri }} style={styles.img} /> : form.urlFotoPulsador && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoPulsador}` }} style={styles.img} /> : null}
+        {fotoPul?.uri ? <Image source={{ uri: fotoPul.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoPulsador && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoPulsador}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('pul')}><Text style={styles.camTxt}>Foto pulsador</Text></Pressable>
-        {fotoAud?.uri ? <Image source={{ uri: fotoAud.uri }} style={styles.img} /> : form.urlFotoDispAud && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoDispAud}` }} style={styles.img} /> : null}
+        {fotoAud?.uri ? <Image source={{ uri: fotoAud.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoDispAud && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoDispAud}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('aud')}><Text style={styles.camTxt}>Foto disp. auditivo</Text></Pressable>
 
         <Text style={[styles.lbl, { marginTop: 8 }]}>Caras</Text>
@@ -545,41 +547,42 @@ export function SemaforoWizardScreen(): React.JSX.Element {
                 </View>
               );
             })}
-            <Text style={styles.lbl}>Observacion cara</Text>
+            <Text style={[styles.lbl, { color: colors.textMuted }]}>Observacion cara</Text>
             <TextInput
-              style={styles.inp}
+              style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               value={String(cara.obs ?? '')}
               placeholder="Observacion"
+              placeholderTextColor={colors.textMuted}
               onChangeText={(v) => updateCara(idx, { obs: v })}
             />
-            {fotosCaras[idx]?.uri ? <Image source={{ uri: fotosCaras[idx]?.uri }} style={styles.img} /> : cara.urlFoto && apiBase ? <Image source={{ uri: `${apiBase}${cara.urlFoto}` }} style={styles.img} /> : null}
+            {fotosCaras[idx]?.uri ? <Image source={{ uri: fotosCaras[idx]?.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : cara.urlFoto && apiBase ? <Image source={{ uri: `${apiBase}${cara.urlFoto}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
             <Pressable style={styles.cam} onPress={() => void takeFoto({ cara: idx })}><Text style={styles.camTxt}>Foto cara {idx + 1}</Text></Pressable>
           </View>
         ))}
         {(['obs1', 'obs2', 'obs3', 'obs4', 'obs5', 'obs6'] as const).map((k, idx) => (
           <View key={k} style={styles.block}><Text style={styles.lbl}>Obs {idx + 1}</Text><Pressable style={styles.pick} onPress={() => setObsPick(k)}><Text>{labelObs(form[k])}</Text></Pressable></View>
         ))}
-        <Text style={styles.lbl}>Notas generales</Text>
-        <TextInput style={[styles.inp, { minHeight: 80 }]} multiline value={String(form.notasGenerales ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, notasGenerales: v }))} />
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Notas generales</Text>
+        <TextInput style={[styles.inp, { minHeight: 80, backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} multiline value={String(form.notasGenerales ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, notasGenerales: v }))} placeholderTextColor={colors.textMuted} />
       </ScrollView>
-      <View style={styles.footer}><Pressable style={[styles.save, saving && styles.dis]} onPress={() => void guardar()} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveTxt}>Guardar</Text>}</Pressable></View>
+      <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}><Pressable style={[styles.save, saving && styles.dis]} onPress={() => void guardar()} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveTxt}>Guardar</Text>}</Pressable></View>
 
-      <Modal visible={tramoOpen} transparent animationType="slide"><View style={styles.modalBg}><View style={styles.modal}><TextInput style={styles.inp} value={qTramo} onChangeText={setQTramo} placeholder="Buscar tramo..." /><ScrollView style={{ maxHeight: 400 }}>{tramosFiltrados.map((t) => <Pressable key={t._id} style={styles.row} onPress={() => { setForm((f) => ({ ...f, idViaTramo: t._id })); setTramoOpen(false); }}><Text style={{ fontWeight: '700' }}>{t.via ?? '—'}</Text><Text>{t.nomenclatura?.completa ?? '—'}</Text></Pressable>)}</ScrollView></View></View></Modal>
-      <Modal visible={ctrlOpen} transparent animationType="slide"><View style={styles.modalBg}><View style={styles.modal}><TextInput style={styles.inp} value={qCtrl} onChangeText={setQCtrl} placeholder="Buscar control..." /><ScrollView style={{ maxHeight: 400 }}>{controlesFiltrados.map((c) => <Pressable key={c._id} style={styles.row} onPress={() => { setForm((f) => ({ ...f, idControSem: c._id })); setCtrlOpen(false); }}><Text style={{ fontWeight: '700' }}>Control #{c.numExterno ?? '—'}</Text><Text>{typeof c.idViaTramo === 'object' ? (c.idViaTramo?.via ?? '') : ''}</Text></Pressable>)}</ScrollView></View></View></Modal>
+      <Modal visible={tramoOpen} transparent animationType="slide"><View style={styles.modalBg}><View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}><TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={qTramo} onChangeText={setQTramo} placeholder="Buscar tramo..." placeholderTextColor={colors.textMuted} /><ScrollView style={{ maxHeight: 400 }}>{tramosFiltrados.map((t) => <Pressable key={t._id} style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => { setForm((f) => ({ ...f, idViaTramo: t._id })); setTramoOpen(false); }}><Text style={{ fontWeight: '700', color: colors.text }}>{t.via ?? '—'}</Text><Text style={{ color: colors.textMuted }}>{t.nomenclatura?.completa ?? '—'}</Text></Pressable>)}</ScrollView></View></View></Modal>
+      <Modal visible={ctrlOpen} transparent animationType="slide"><View style={styles.modalBg}><View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}><TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={qCtrl} onChangeText={setQCtrl} placeholder="Buscar control..." placeholderTextColor={colors.textMuted} /><ScrollView style={{ maxHeight: 400 }}>{controlesFiltrados.map((c) => <Pressable key={c._id} style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => { setForm((f) => ({ ...f, idControSem: c._id })); setCtrlOpen(false); }}><Text style={{ fontWeight: '700', color: colors.text }}>Control #{c.numExterno ?? '—'}</Text><Text style={{ color: colors.textMuted }}>{typeof c.idViaTramo === 'object' ? (c.idViaTramo?.via ?? '') : ''}</Text></Pressable>)}</ScrollView></View></View></Modal>
       <Modal visible={obsPick != null} transparent animationType="fade">
         <Pressable style={styles.modalBg} onPress={() => setObsPick(null)}>
-          <Pressable style={styles.modalDark} onPress={(e) => e.stopPropagation()}>
+          <Pressable style={[styles.modalDark, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={(e) => e.stopPropagation()}>
             <ScrollView style={{ maxHeight: 420 }}>
               {obs.map((o) => (
                 <Pressable
                   key={o._id}
-                  style={styles.rowDark}
+                  style={[styles.rowDark, { borderBottomColor: colors.border }]}
                   onPress={() => {
                     if (obsPick) setForm((f) => ({ ...f, [obsPick]: o._id }));
                     setObsPick(null);
                   }}
                 >
-                  <Text style={styles.rowDarkText}>{obsLabelValue(o)}</Text>
+                  <Text style={[styles.rowDarkText, { color: colors.text }]}>{obsLabelValue(o)}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -594,14 +597,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0f141a' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   block: { marginBottom: 12 },
-  lbl: { fontWeight: '600', marginBottom: 6, color: '#a7bacb' },
-  inp: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#2d3b49', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8 },
-  pick: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#2d3b49', borderRadius: 10, padding: 12, marginBottom: 10 },
-  chip: { backgroundColor: '#202b36', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: '#2d3b49' },
+  lbl: { fontWeight: '600', marginBottom: 6, color: '#546e7a' },
+  inp: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfd8dc', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 10, marginBottom: 8, color: '#1a2332' },
+  pick: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfd8dc', borderRadius: 10, padding: 12, marginBottom: 10 },
+  chip: { backgroundColor: '#e8edf3', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: '#cfd8dc' },
   chipOn: { backgroundColor: '#c62828' },
-  chipTxt: { color: '#a7bacb', fontSize: 12 },
+  chipTxt: { color: '#1a2332', fontSize: 12 },
   chipTxtOn: { color: '#fff', fontWeight: '700' },
-  img: { width: '100%', height: 180, borderRadius: 10, backgroundColor: '#202b36', marginBottom: 10 },
+  img: { width: '100%', height: 180, borderRadius: 10, backgroundColor: '#e8edf3', marginBottom: 10 },
   cam: { backgroundColor: '#1565c0', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 10 },
   camTxt: { color: '#fff', fontWeight: '700' },
   footer: { padding: 12, borderTopWidth: 1, borderTopColor: '#2d3b49', backgroundColor: '#18212b' },
@@ -609,20 +612,20 @@ const styles = StyleSheet.create({
   saveTxt: { color: '#fff', fontWeight: '700' },
   dis: { opacity: 0.45 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 },
-  modal: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#2d3b49' },
-  modalDark: { backgroundColor: '#18212b', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#2d3b49' },
-  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
-  rowDark: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
-  rowDarkText: { color: '#e8eef5' },
-  caraCard: { backgroundColor: '#18212b', borderWidth: 1, borderColor: '#2d3b49', borderRadius: 10, padding: 10, marginBottom: 12 },
-  caraTit: { fontWeight: '700', color: '#e8eef5', marginBottom: 6 },
-  caraSubTit: { fontWeight: '700', color: '#8bb8ff', marginTop: 6, marginBottom: 8, textTransform: 'uppercase' },
+  modal: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#cfd8dc' },
+  modalDark: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#cfd8dc' },
+  row: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#cfd8dc' },
+  rowDark: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#cfd8dc' },
+  rowDarkText: { color: '#1a2332' },
+  caraCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfd8dc', borderRadius: 10, padding: 10, marginBottom: 12 },
+  caraTit: { fontWeight: '700', color: '#1a2332', marginBottom: 6 },
+  caraSubTit: { fontWeight: '700', color: '#c62828', marginTop: 6, marginBottom: 8, textTransform: 'uppercase' },
   diagRow: { flexDirection: 'row', gap: 8, marginBottom: 6 },
   diagCol: { flex: 1 },
   danosWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  danoChip: { backgroundColor: '#202b36', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderColor: '#2d3b49' },
+  danoChip: { backgroundColor: '#e8edf3', borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderColor: '#cfd8dc' },
   danoChipOn: { backgroundColor: '#4a8bc0' },
-  danoTxt: { fontSize: 11, color: '#a7bacb' },
+  danoTxt: { fontSize: 11, color: '#1a2332' },
   danoTxtOn: { color: '#fff', fontWeight: '700' },
 });
 

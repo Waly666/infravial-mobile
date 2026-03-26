@@ -30,7 +30,7 @@ function ensureClients(): { bare: AxiosInstance; auth: AxiosInstance } {
   const baseURL = getApiBaseUrl();
   if (!baseURL) {
     throw new Error(
-      'API no configurada: defina EXPO_PUBLIC_API_BASE_URL (ver .env.example).',
+      'API no configurada: abra Configuración y defina la URL base del backend.',
     );
   }
   if (!bareClient || bareClient.defaults.baseURL !== baseURL) {

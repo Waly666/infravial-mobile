@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
+  ApiConfig: undefined;
   /** Sin `id` = alta; con `id` = edición (como `SenVertWizard`). */
   ViaTramoWizard:
     | { id?: string; draftLocalId?: string; draftPayload?: Record<string, unknown> }

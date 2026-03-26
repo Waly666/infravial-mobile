@@ -1,4 +1,4 @@
-import type { EncuestaRespuestaItem, PreguntaEncViaDto } from '@/types/encuesta';
+import { fromApiValorRta, type EncuestaRespuestaItem, type PreguntaEncViaDto } from '@/types/encuesta';
 
 function refId(v: unknown): string {
   if (v == null || v === '') return '';
@@ -122,7 +122,7 @@ export function mergeEncuestaIntoRespuestas(
     return {
       idPregunta: p._id,
       consecutivo: p.consecutivo,
-      valorRta: r?.valorRta != null ? String(r.valorRta) : '',
+      valorRta: fromApiValorRta(r?.valorRta),
     };
   });
 }

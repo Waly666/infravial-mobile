@@ -42,6 +42,7 @@ import {
   uploadSenHorFoto,
 } from '@/services/api/senHorApi';
 import { captureGeolocation } from '@/services/geo/captureLocation';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import type { DemarcacionDto, ExistSenHorListItemDto, ObsShDto, UbicSenHorDto } from '@/types/senHor';
 import type { JornadaActivaDto } from '@/types/jornada';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
@@ -118,6 +119,7 @@ export function SenHorWizardScreen(): React.JSX.Element {
   const route = useRoute<Route>();
   const editId = route.params?.id;
   const { jornada } = useJornadaActiva();
+  const { colors } = useAppTheme();
   const apiBase = getApiBaseUrl();
 
   const [paso, setPaso] = useState(1);
@@ -191,11 +193,11 @@ export function SenHorWizardScreen(): React.JSX.Element {
   function chipRow<T extends string>(label: string, value: string, options: readonly T[], onSelect: (v: T) => void): React.JSX.Element {
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {options.map((o) => (
-            <Pressable key={o} style={[styles.chip, value === o && styles.chipOn]} onPress={() => onSelect(o)}>
-              <Text style={[styles.chipTxt, value === o && styles.chipTxtOn]} numberOfLines={2}>
+            <Pressable key={o} style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]} onPress={() => onSelect(o)}>
+              <Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]} numberOfLines={2}>
                 {o}
               </Text>
             </Pressable>
@@ -302,17 +304,17 @@ export function SenHorWizardScreen(): React.JSX.Element {
 
   if (initLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" />
-        <Text style={styles.loadTxt}>Cargando…</Text>
+        <Text style={[styles.loadTxt, { color: colors.textMuted }]}>Cargando…</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.progress}>
-        <Text style={styles.progressTxt}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.progress, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.progressTxt, { color: colors.primary }]}>
           Paso {paso} / {TOTAL_PASOS} — ExistSenHor
         </Text>
       </View>
@@ -320,8 +322,8 @@ export function SenHorWizardScreen(): React.JSX.Element {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {paso === 1 ? (
           <>
-            <Text style={styles.h2}>Tramo y demarcación</Text>
-            <Text style={styles.lbl}>Tramo seleccionado</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Tramo y demarcación</Text>
+            <Text style={[styles.lbl, { color: colors.textMuted }]}>Tramo seleccionado</Text>
             <Pressable style={styles.secBtn} onPress={() => setTramoOpen(true)}>
               <Text style={styles.secBtnTxt}>{tramoSel ? `${tramoSel.via ?? tramoSel.nomenclatura?.completa ?? '—'}` : 'Elegir tramo'}</Text>
             </Pressable>

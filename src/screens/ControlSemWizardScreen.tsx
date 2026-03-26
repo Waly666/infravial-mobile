@@ -16,6 +16,7 @@ import { captureGeolocation } from '@/services/geo/captureLocation';
 import { enqueueOffline } from '@/services/sync/offlineOutbox';
 import { sqliteSurveyRepository } from '@/storage/offline/sqliteSurveyRepository';
 import { fetchViaTramos } from '@/services/api/viaTramoApi';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
 
 const FASES = ['Inventario', 'Programación', 'Diseño', 'Por definir'] as const;
@@ -33,6 +34,7 @@ export function ControlSemWizardScreen(): React.JSX.Element {
   const draftPayload = route.params?.draftPayload as Record<string, unknown> | undefined;
   const online = useOnlineStatus();
   const { jornada } = useJornadaActiva();
+  const { colors } = useAppTheme();
   const apiBase = getApiBaseUrl();
   const [form, setForm] = useState<Record<string, unknown>>(() => createControlSemFormState(null));
   const [tramos, setTramos] = useState<ViaTramoListItemDto[]>([]);
@@ -93,8 +95,8 @@ export function ControlSemWizardScreen(): React.JSX.Element {
   function chipRow(label: string, value: string, opts: readonly string[], key: string): React.JSX.Element {
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
-        <ScrollView horizontal>{opts.map((o) => <Pressable key={o} style={[styles.chip, value === o && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, [key]: o }))}><Text style={[styles.chipTxt, value === o && styles.chipTxtOn]}>{o}</Text></Pressable>)}</ScrollView>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
+        <ScrollView horizontal>{opts.map((o) => <Pressable key={o} style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, [key]: o }))}><Text style={[styles.chipTxt, { color: colors.textMuted }, value === o && styles.chipTxtOn]}>{o}</Text></Pressable>)}</ScrollView>
       </View>
     );
   }
@@ -179,13 +181,13 @@ export function ControlSemWizardScreen(): React.JSX.Element {
     } finally { setSaving(false); }
   }
 
-  if (loading) return <View style={styles.center}><ActivityIndicator /></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator /></View>;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ padding: 14 }}>
-        <Pressable style={styles.pick} onPress={() => setTramoOpen(true)}><Text>{String(form.idViaTramo ? `Tramo: ${form.idViaTramo}` : 'Seleccionar tramo')}</Text></Pressable>
-        <Pressable style={styles.pick} onPress={() => void gps()}><Text>Capturar GPS</Text></Pressable>
+        <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setTramoOpen(true)}><Text style={{ color: colors.text }}>{String(form.idViaTramo ? `Tramo: ${form.idViaTramo}` : 'Seleccionar tramo')}</Text></Pressable>
+        <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => void gps()}><Text style={{ color: colors.text }}>Capturar GPS</Text></Pressable>
         <DecimalTextField label="Lat" value={form.lat} variant="coord" onCommit={(n) => setForm((f) => ({ ...f, lat: n }))} />
         <DecimalTextField label="Lng" value={form.lng} variant="coord" onCommit={(n) => setForm((f) => ({ ...f, lng: n }))} />
         <DecimalTextField label="Número externo" value={form.numExterno} variant="medida" onCommit={(n) => setForm((f) => ({ ...f, numExterno: n }))} />
@@ -193,26 +195,26 @@ export function ControlSemWizardScreen(): React.JSX.Element {
         {chipRow('Implementación', String(form.implementacion ?? ''), IMPLEMENTACIONES, 'implementacion')}
         {chipRow('Tipo controlador', String(form.tipoControlador ?? ''), TIPOS_CTRL, 'tipoControlador')}
         {chipRow('Estado controlador', String(form.estadoControlador ?? ''), ESTADOS, 'estadoControlador')}
-        <Text style={styles.lbl}>Clase controlador</Text>
-        <TextInput style={styles.inp} value={String(form.claseControlador ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, claseControlador: v }))} />
-        <Text style={styles.lbl}>Serial</Text>
-        <TextInput style={styles.inp} value={String(form.serialControlador ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, serialControlador: v }))} />
-        <View style={styles.block}><Text style={styles.lbl}>UPS</Text><View style={{ flexDirection: 'row', gap: 8 }}><Pressable style={[styles.chip, form.ups === true && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, ups: true }))}><Text style={[styles.chipTxt, form.ups === true && styles.chipTxtOn]}>Sí</Text></Pressable><Pressable style={[styles.chip, form.ups !== true && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, ups: false, estadoUps: '', tipoBateria: '' }))}><Text style={[styles.chipTxt, form.ups !== true && styles.chipTxtOn]}>No</Text></Pressable></View></View>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Clase controlador</Text>
+        <TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={String(form.claseControlador ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, claseControlador: v }))} placeholderTextColor={colors.textMuted} />
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Serial</Text>
+        <TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={String(form.serialControlador ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, serialControlador: v }))} placeholderTextColor={colors.textMuted} />
+        <View style={styles.block}><Text style={[styles.lbl, { color: colors.textMuted }]}>UPS</Text><View style={{ flexDirection: 'row', gap: 8 }}><Pressable style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, form.ups === true && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, ups: true }))}><Text style={[styles.chipTxt, { color: colors.textMuted }, form.ups === true && styles.chipTxtOn]}>Sí</Text></Pressable><Pressable style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, form.ups !== true && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, ups: false, estadoUps: '', tipoBateria: '' }))}><Text style={[styles.chipTxt, { color: colors.textMuted }, form.ups !== true && styles.chipTxtOn]}>No</Text></Pressable></View></View>
         {form.ups ? <>{chipRow('Tipo batería', String(form.tipoBateria ?? ''), BATERIAS, 'tipoBateria')}{chipRow('Estado UPS', String(form.estadoUps ?? ''), ESTADOS, 'estadoUps')}</> : null}
         {chipRow('Material armario', String(form.materialArmario ?? ''), MAT_ARM, 'materialArmario')}
         {chipRow('Estado armario', String(form.estadoArmario ?? ''), ESTADOS, 'estadoArmario')}
-        <Text style={styles.lbl}>Notas</Text>
-        <TextInput style={[styles.inp, { minHeight: 70 }]} multiline value={String(form.notas ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, notas: v }))} />
-        <Text style={styles.lbl}>Foto controlador</Text>
-        {fotoCtrl?.uri ? <Image source={{ uri: fotoCtrl.uri }} style={styles.img} /> : form.urlFotoControlador && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoControlador}` }} style={styles.img} /> : null}
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Notas</Text>
+        <TextInput style={[styles.inp, { minHeight: 70, backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} multiline value={String(form.notas ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, notas: v }))} placeholderTextColor={colors.textMuted} />
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Foto controlador</Text>
+        {fotoCtrl?.uri ? <Image source={{ uri: fotoCtrl.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoControlador && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoControlador}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('ctrl')}><Text style={styles.camTxt}>Tomar foto controlador</Text></Pressable>
-        <Text style={styles.lbl}>Foto armario</Text>
-        {fotoArm?.uri ? <Image source={{ uri: fotoArm.uri }} style={styles.img} /> : form.urlFotoArmario && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoArmario}` }} style={styles.img} /> : null}
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>Foto armario</Text>
+        {fotoArm?.uri ? <Image source={{ uri: fotoArm.uri }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : form.urlFotoArmario && apiBase ? <Image source={{ uri: `${apiBase}${form.urlFotoArmario}` }} style={[styles.img, { backgroundColor: colors.surfaceAlt }]} /> : null}
         <Pressable style={styles.cam} onPress={() => void takeFoto('arm')}><Text style={styles.camTxt}>Tomar foto armario</Text></Pressable>
       </ScrollView>
-      <View style={styles.footer}><Pressable style={[styles.save, saving && styles.dis]} onPress={() => void guardar()} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveTxt}>Guardar</Text>}</Pressable></View>
+      <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}><Pressable style={[styles.save, saving && styles.dis]} onPress={() => void guardar()} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveTxt}>Guardar</Text>}</Pressable></View>
       <Modal visible={tramoOpen} transparent animationType="slide">
-        <View style={styles.modalBg}><View style={styles.modal}><TextInput style={styles.inp} value={qTramo} onChangeText={setQTramo} placeholder="Buscar tramo..." /><ScrollView style={{ maxHeight: 420 }}>{tramosFiltrados.map((t) => <Pressable key={t._id} style={styles.row} onPress={() => { setForm((f) => ({ ...f, idViaTramo: t._id })); setTramoOpen(false); }}><Text style={{ fontWeight: '700' }}>{t.via ?? '—'}</Text><Text>{t.nomenclatura?.completa ?? '—'}</Text></Pressable>)}</ScrollView></View></View>
+        <View style={styles.modalBg}><View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}><TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={qTramo} onChangeText={setQTramo} placeholder="Buscar tramo..." placeholderTextColor={colors.textMuted} /><ScrollView style={{ maxHeight: 420 }}>{tramosFiltrados.map((t) => <Pressable key={t._id} style={styles.row} onPress={() => { setForm((f) => ({ ...f, idViaTramo: t._id })); setTramoOpen(false); }}><Text style={{ fontWeight: '700', color: colors.text }}>{t.via ?? '—'}</Text><Text style={{ color: colors.textMuted }}>{t.nomenclatura?.completa ?? '—'}</Text></Pressable>)}</ScrollView></View></View>
       </Modal>
     </View>
   );

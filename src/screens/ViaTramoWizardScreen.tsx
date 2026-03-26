@@ -70,7 +70,8 @@ import {
 import { captureGeolocation } from '@/services/geo/captureLocation';
 import { enqueueOffline } from '@/services/sync/offlineOutbox';
 import { sqliteSurveyRepository } from '@/storage/offline/sqliteSurveyRepository';
-import type { EncuestaRespuestaItem, PreguntaEncViaDto } from '@/types/encuesta';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { toApiValorRta, type EncuestaRespuestaItem, type PreguntaEncViaDto } from '@/types/encuesta';
 
 const TOTAL_PASOS = 10;
 const TRAMO_FOTOS_REQUERIDAS = 3;
@@ -98,6 +99,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
   const { user } = useAuth();
   const online = useOnlineStatus();
   const { jornada, loading: jornadaLoading } = useJornadaActiva();
+  const { colors } = useAppTheme();
   const [paso, setPaso] = useState(1);
   const [form, setForm] = useState<Record<string, unknown>>(() => createViaTramoFormState(null));
   const [saving, setSaving] = useState(false);
@@ -504,7 +506,12 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
     try {
       const payload = buildViaTramoCreatePayload(form, encuestador || 'encuestador');
       const rawResp = (form.respuestas as EncuestaRespuestaItem[] | undefined) ?? [];
-      const respuestas = rawResp.filter((r) => Boolean(r.valorRta));
+      const respuestas = rawResp
+        .filter((r) => Boolean(r.valorRta))
+        .map((r) => ({
+          ...r,
+          valorRta: toApiValorRta(r.valorRta),
+        }));
       const files = fotosList.map((a, idx) => ({
         uri: a.uri,
         name: a.fileName ?? `tramo-foto-${idx + 1}.jpg`,
@@ -588,15 +595,15 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
   ): React.JSX.Element {
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
           {options.map((o) => (
             <Pressable
               key={o}
-              style={[styles.chip, value === o && styles.chipOn]}
+              style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]}
               onPress={() => onSelect(o)}
             >
-              <Text style={[styles.chipTxt, value === o && styles.chipTxtOn]} numberOfLines={2}>
+              <Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]} numberOfLines={2}>
                 {o}
               </Text>
             </Pressable>
@@ -616,9 +623,9 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
     const str = v == null ? '' : String(v);
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
         <TextInput
-          style={[styles.inp, multiline && styles.inpMulti]}
+          style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }, multiline && styles.inpMulti]}
           value={str}
           onChangeText={(t) => {
             if (keyboard === 'numeric' || keyboard === 'decimal-pad') {
@@ -630,29 +637,34 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
           }}
           keyboardType={keyboard}
           multiline={multiline}
+          placeholderTextColor={colors.textMuted}
         />
       </View>
     );
   }
 
   function medRow(label: string, key: string): React.JSX.Element {
+    const isCalzadaMeasure = key === 'calzadaIzq' || key === 'calzadaDer';
     return (
-      <DecimalTextField
-        label={label}
-        small
-        value={form[key]}
-        variant="medida"
-        onCommit={(n) => setMedida(key, n ?? 0)}
-      />
+      <View style={isCalzadaMeasure ? styles.calzadaFocus : undefined}>
+        {isCalzadaMeasure ? <Text style={styles.calzadaFocusTag}>Medida clave de calzada</Text> : null}
+        <DecimalTextField
+          label={label}
+          small
+          value={form[key]}
+          variant="medida"
+          onCommit={(n) => setMedida(key, n ?? 0)}
+        />
+      </View>
     );
   }
 
   function refPickRow(label: string, field: PickField): React.JSX.Element {
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
-        <Pressable style={styles.pickBtn} onPress={() => openPick(field)}>
-          <Text style={styles.pickBtnTxt} numberOfLines={2}>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
+        <Pressable style={[styles.pickBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => openPick(field)}>
+          <Text style={[styles.pickBtnTxt, { color: colors.text }]} numberOfLines={2}>
             {labelForField(field)}
           </Text>
         </Pressable>
@@ -667,13 +679,13 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
   const danos = (form.danos as { dano: string; clase: string; tipo: string }[]) || [];
 
   return (
-    <View style={styles.root}>
-      <View style={styles.progress}>
-        <Text style={styles.progressTxt}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.progress, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.progressTxt, { color: colors.primary }]}>
           Paso {paso} / {TOTAL_PASOS} — {draftLocalId ? 'Revisar pendiente' : editId ? 'Editar inventario' : 'Inventario (via_tramos)'}
         </Text>
-        {catalogLoading ? <Text style={styles.progressSub}>Cargando catálogos…</Text> : null}
-        {editLoading ? <Text style={styles.progressSub}>Cargando tramo…</Text> : null}
+        {catalogLoading ? <Text style={[styles.progressSub, { color: colors.textMuted }]}>Cargando catálogos…</Text> : null}
+        {editLoading ? <Text style={[styles.progressSub, { color: colors.textMuted }]}>Cargando tramo…</Text> : null}
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -681,8 +693,8 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 1 ? (
           <>
-            <Text style={styles.h2}>Datos de jornada</Text>
-            <Text style={styles.sub}>Paso 1 (como la web): datos heredados de la jornada activa.</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Datos de jornada</Text>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>Paso 1 (como la web): datos heredados de la jornada activa.</Text>
             {chipRow('Tipo de localidad *', String(form.tipoLocalidad ?? ''), TIPOS_LOCALIDAD, (v) =>
               setField('tipoLocalidad', v),
             )}
@@ -696,8 +708,8 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 2 ? (
           <>
-            <Text style={styles.h2}>Georreferenciación</Text>
-            <Text style={styles.sub}>LineString inicio → fin.</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Georreferenciación</Text>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>LineString inicio → fin.</Text>
             <View style={styles.rowGps}>
               <Pressable
                 style={[styles.gpsBtn, gpsBusy && styles.dis]}
@@ -714,7 +726,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
                 <Text style={styles.gpsTxt}>GPS fin</Text>
               </Pressable>
             </View>
-            <Text style={styles.sub}>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>
               Al usar GPS se rellenan lat/lng y, si el equipo lo permite, la altitud; si no, indícala abajo.
             </Text>
             <DecimalTextField
@@ -761,7 +773,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 3 ? (
           <>
-            <Text style={styles.h2}>Identificación de la vía</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Identificación de la vía</Text>
             <Text style={styles.lbl}>Nomenclatura</Text>
             {chipRow('Tipo vía 1', nom.tipoVia1 ?? '', TIPOS_NOMENCLATURA, (v) => setNomenclatura({ tipoVia1: v }))}
             <TextInput
@@ -769,7 +781,6 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               placeholder="Número 1"
               value={nom.numero1 ?? ''}
               onChangeText={(t) => setNomenclatura({ numero1: t })}
-              keyboardType="number-pad"
             />
             {chipRow('Conector', nom.conector ?? '', CONECTORES, (v) => setNomenclatura({ conector: v }))}
             {chipRow('Tipo vía 2', nom.tipoVia2 ?? '', TIPOS_NOMENCLATURA, (v) => setNomenclatura({ tipoVia2: v }))}
@@ -778,7 +789,6 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               placeholder="Número 2"
               value={nom.numero2 ?? ''}
               onChangeText={(t) => setNomenclatura({ numero2: t })}
-              keyboardType="number-pad"
             />
             {chipRow('Conector 2', nom.conector2 ?? '', CONECTOR2_NOM, (v) => setNomenclatura({ conector2: v }))}
             {chipRow('Tipo vía 3', nom.tipoVia3 ?? '', TIPOS_NOMENCLATURA, (v) => setNomenclatura({ tipoVia3: v }))}
@@ -787,10 +797,9 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               placeholder="Número 3"
               value={nom.numero3 ?? ''}
               onChangeText={(t) => setNomenclatura({ numero3: t })}
-              keyboardType="number-pad"
             />
             {nom.completa ? (
-              <Text style={styles.nomPreview}>📍 {nom.completa}</Text>
+              <Text style={[styles.nomPreview, { color: colors.primary }]}>📍 {nom.completa}</Text>
             ) : null}
 
             {inp('Nombre de la vía *', 'via')}
@@ -803,7 +812,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 4 ? (
           <>
-            <Text style={styles.h2}>Datos generales</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Datos generales</Text>
             {inp('Entidad vía', 'entidadVia')}
             {inp('Responsable vía', 'respVia')}
             {refPickRow('ZAT', 'zat')}
@@ -830,15 +839,15 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 5 ? (
           <>
-            <Text style={styles.h2}>Medidas del perfil (m)</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Medidas del perfil (m)</Text>
             {!calzada ? (
-              <Text style={styles.warn}>Selecciona la calzada en el paso 3.</Text>
+              <Text style={[styles.warn, { color: colors.danger }]}>Selecciona la calzada en el paso 3.</Text>
             ) : (
-              <Text style={styles.sub}>Calzada: {calzada}</Text>
+              <Text style={[styles.sub, { color: colors.textMuted }]}>Calzada: {calzada}</Text>
             )}
             {calzada === 'Una' ? (
               <>
-                <Text style={styles.medSection}>Lado izquierdo</Text>
+                <Text style={[styles.medSection, { color: colors.text }]}>Lado izquierdo</Text>
                 {medRow('Andén izq.', 'andenIzq')}
                 {medRow('Zona verde izq.', 'zonaVerdeIzq')}
                 {medRow('Antejardín izq.', 'anteJardinIzq')}
@@ -850,7 +859,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
                 {medRow('Cuneta izq.', 'cunetaIzq')}
                 {medRow('Berma izq.', 'bermaIzq')}
                 {medRow('Ancho calzada', 'calzadaIzq')}
-                <Text style={styles.medSection}>Lado derecho</Text>
+                <Text style={[styles.medSection, { color: colors.text }]}>Lado derecho</Text>
                 {medRow('Andén der.', 'andenDer')}
                 {medRow('Zona verde der.', 'zonaVerdeDer')}
                 {medRow('Antejardín der.', 'anteJardinDer')}
@@ -863,7 +872,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               </>
             ) : calzada === 'Dos' || calzada === 'Tres' ? (
               <>
-                <Text style={styles.medSection}>Calzada izquierda</Text>
+                <Text style={[styles.medSection, { color: colors.text }]}>Calzada izquierda</Text>
                 {medRow('Antejardín izq.', 'anteJardinIzq')}
                 {medRow('Andén izq.', 'andenIzq')}
                 {medRow('Zona verde izq.', 'zonaVerdeIzq')}
@@ -875,7 +884,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
                 {medRow('Cuneta izq.', 'cunetaIzq')}
                 {medRow('Berma izq.', 'bermaIzq')}
                 {medRow('Ancho calzada izq.', 'calzadaIzq')}
-                <Text style={styles.medSection}>Separador</Text>
+                <Text style={[styles.medSection, { color: colors.text }]}>Separador</Text>
                 {medRow('Ancho separador', 'separadorPeatonal')}
                 {medRow('Zona verde izq. sep.', 'separadorZonaVerdeIzq')}
                 {medRow('Ciclorruta sep.', 'separadorCicloRuta')}
@@ -903,8 +912,8 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
                     setForm((f) => ({ ...f, pendiente: recalcPendientePorcentaje(pendBase, a) }));
                   }}
                 />
-                <Text style={styles.sub}>Pendiente: {String(form.pendiente ?? 0)} %</Text>
-                <Text style={styles.medSection}>Calzada derecha</Text>
+                <Text style={[styles.sub, { color: colors.textMuted }]}>Pendiente: {String(form.pendiente ?? 0)} %</Text>
+                <Text style={[styles.medSection, { color: colors.text }]}>Calzada derecha</Text>
                 {medRow('Antejardín der.', 'anteJardinDer')}
                 {medRow('Andén der.', 'andenDer')}
                 {medRow('Zona verde der.', 'zonaVerdeDer')}
@@ -919,23 +928,23 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               </>
             ) : null}
             <View style={styles.totalRow}>
-              <Text style={styles.totalLbl}>Ancho total perfil</Text>
-              <Text style={styles.totalVal}>{String(form.anchoTotalPerfil ?? 0)} m</Text>
+              <Text style={[styles.totalLbl, { color: colors.text }]}>Ancho total perfil</Text>
+              <Text style={[styles.totalVal, { color: colors.primary }]}>{String(form.anchoTotalPerfil ?? 0)} m</Text>
             </View>
             <View style={styles.totalRow}>
-              <Text style={styles.totalLbl}>Longitud tramo</Text>
-              <Text style={styles.totalVal}>{String(form.longitud_m ?? 0)} m</Text>
+              <Text style={[styles.totalLbl, { color: colors.text }]}>Longitud tramo</Text>
+              <Text style={[styles.totalVal, { color: colors.primary }]}>{String(form.longitud_m ?? 0)} m</Text>
             </View>
           </>
         ) : null}
 
         {paso === 6 ? (
           <>
-            <Text style={styles.h2}>Clasificación vial</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Clasificación vial</Text>
             <View style={styles.clasBox}>
-              <Text style={styles.clasLine}>Nacional: {String(form.clasNacional ?? '—')}</Text>
-              <Text style={styles.clasLine}>Prelación: {String(form.clasPrelacion ?? '—')}</Text>
-              <Text style={styles.clasHint}>
+              <Text style={[styles.clasLine, { color: colors.text }]}>Nacional: {String(form.clasNacional ?? '—')}</Text>
+              <Text style={[styles.clasLine, { color: colors.text }]}>Prelación: {String(form.clasPrelacion ?? '—')}</Text>
+              <Text style={[styles.clasHint, { color: colors.textMuted }]}>
                 Según ancho {String(form.anchoTotalPerfil ?? 0)} m y tipo vía {String(form.tipoVia || '—')}.
               </Text>
             </View>
@@ -957,7 +966,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 7 ? (
           <>
-            <Text style={styles.h2}>Características</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Características</Text>
             {chipRow('Diseño geométrico', String(form.disenioGeometrico ?? ''), DISENIO_GEOM, (v) =>
               setField('disenioGeometrico', v),
             )}
@@ -1024,10 +1033,10 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 8 ? (
           <>
-            <Text style={styles.h2}>Daños en capa de rodadura</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Daños en capa de rodadura</Text>
             {danos.map((d, i) => (
               <View key={i} style={styles.danoCard}>
-                <Text style={styles.danoTitle}>Daño {i + 1}</Text>
+                <Text style={[styles.danoTitle, { color: colors.text }]}>Daño {i + 1}</Text>
                 {chipRow('Daño', d.dano ?? '', DANOS_OPCIONES, (v) => setDano(i, 'dano', v))}
                 {chipRow('Clase', d.clase ?? '', CLASES_DANO, (v) => setDano(i, 'clase', v))}
                 {chipRow('Tipo', d.tipo ?? '', TIPOS_DANO, (v) => setDano(i, 'tipo', v))}
@@ -1038,16 +1047,16 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 9 ? (
           <>
-            <Text style={styles.h2}>Encuesta de seguridad vial</Text>
-            <Text style={styles.sub}>Opcional; mismas respuestas que la web (si/no/na).</Text>
-            {preguntas.length === 0 ? <Text style={styles.warn}>Sin preguntas cargadas.</Text> : null}
+            <Text style={[styles.h2, { color: colors.text }]}>Encuesta de seguridad vial</Text>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>Opcional; mismas respuestas que la web (si/no/na).</Text>
+            {preguntas.length === 0 ? <Text style={[styles.warn, { color: colors.danger }]}>Sin preguntas cargadas.</Text> : null}
             {preguntas.map((p, idx) => {
               const r = respuestasList[idx];
               const v = r?.valorRta ?? '';
               return (
                 <View key={p._id} style={styles.qCard}>
-                  <Text style={styles.qConsec}>Pregunta {p.consecutivo}</Text>
-                  <Text style={styles.qText}>{p.enunciado}</Text>
+                  <Text style={[styles.qConsec, { color: colors.primary }]}>Pregunta {p.consecutivo}</Text>
+                  <Text style={[styles.qText, { color: colors.text }]}>{p.enunciado}</Text>
                   <View style={styles.encRow}>
                     {ENC_OPCIONES.map((op) => (
                       <Pressable
@@ -1076,7 +1085,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
         {paso === 10 ? (
           <>
-            <Text style={styles.h2}>Fotos y observaciones</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Fotos y observaciones</Text>
             {([1, 2, 3, 4, 5, 6] as const).map((n) => {
               const key = `obs${n}` as PickField;
               return <View key={n}>{refPickRow(`Observación ${n}`, key)}</View>;
@@ -1091,11 +1100,11 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
             </Text>
             {fotoSlots.map((asset, slotIndex) => (
               <View key={slotIndex} style={styles.fotoSlotCard}>
-                <Text style={styles.fotoSlotTitle}>Foto {slotIndex + 1}</Text>
+                <Text style={[styles.fotoSlotTitle, { color: colors.text }]}>Foto {slotIndex + 1}</Text>
                 {asset?.uri ? (
                   <Image source={{ uri: asset.uri }} style={styles.fotoSlotPreview} resizeMode="cover" />
                 ) : (
-                  <Text style={styles.fotoSlotEmpty}>Sin foto</Text>
+                  <Text style={[styles.fotoSlotEmpty, { color: colors.textMuted }]}>Sin foto</Text>
                 )}
                 <View style={styles.fotoSlotActions}>
                   <Pressable
@@ -1116,13 +1125,13 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
         ) : null}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
         <Pressable
           style={[styles.navBtn, paso === 1 && styles.dis]}
           disabled={paso === 1}
           onPress={() => setPaso((p) => Math.max(1, p - 1))}
         >
-          <Text style={styles.navTxt}>Anterior</Text>
+          <Text style={[styles.navTxt, { color: colors.text }]}>Anterior</Text>
         </Pressable>
         {paso < TOTAL_PASOS ? (
           <Pressable style={styles.navBtnPri} onPress={() => setPaso((p) => Math.min(TOTAL_PASOS, p + 1))}>
@@ -1145,24 +1154,24 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
       <Modal visible={pick != null} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={() => setPick(null)}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>{pick?.title}</Text>
+          <Pressable style={[styles.modalSheet, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={(e) => e.stopPropagation()}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{pick?.title}</Text>
             <ScrollView style={{ maxHeight: 420 }}>
               {(pick?.options ?? []).map((opt) => (
                 <Pressable
                   key={opt.id}
-                  style={styles.modalRow}
+                  style={[styles.modalRow, { borderBottomColor: colors.border }]}
                   onPress={() => {
                     if (pick) setField(pick.field, opt.id);
                     setPick(null);
                   }}
                 >
-                  <Text style={styles.modalRowTxt}>{opt.label}</Text>
+                  <Text style={[styles.modalRowTxt, { color: colors.text }]}>{opt.label}</Text>
                 </Pressable>
               ))}
             </ScrollView>
             <Pressable style={styles.modalClose} onPress={() => setPick(null)}>
-              <Text style={styles.modalCloseTxt}>Cerrar</Text>
+              <Text style={[styles.modalCloseTxt, { color: colors.primary }]}>Cerrar</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -1278,6 +1287,21 @@ const styles = StyleSheet.create({
   },
   totalLbl: { fontSize: 15, fontWeight: '600', color: '#37474f' },
   totalVal: { fontSize: 16, fontWeight: '700', color: '#1e5a8a' },
+  calzadaFocus: {
+    backgroundColor: '#fff4e5',
+    borderWidth: 2,
+    borderColor: '#ff9800',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+  },
+  calzadaFocusTag: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#e65100',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
   clasBox: {
     backgroundColor: '#fff',
     padding: 12,

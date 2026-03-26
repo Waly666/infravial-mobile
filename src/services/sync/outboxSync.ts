@@ -25,6 +25,7 @@ import { localPayloadToApiBody } from '@/services/sync/encuestaPayload';
 import type { AxiosError } from 'axios';
 import type { IOfflineSurveyRepository } from '@/storage/offline/OfflineSurveyRepository';
 import { sqliteSurveyRepository } from '@/storage/offline/sqliteSurveyRepository';
+import { toApiValorRta } from '@/types/encuesta';
 import type { OfflineSurveyDraft } from '@/types/offline';
 
 type SyncResult = { enviados: number; errores: number };
@@ -60,7 +61,7 @@ function normalizeRespuestas(raw: Record<string, unknown>[]): {
   }[] = [];
   for (const r of raw) {
     const idPregunta = String(r.idPregunta ?? '').trim();
-    const valorRta = String(r.valorRta ?? '').trim();
+    const valorRta = toApiValorRta(r.valorRta);
     if (!idPregunta || !valorRta) continue;
     const consecutivo = String(r.consecutivo ?? '').trim();
     const observacion = typeof r.observacion === 'string' ? r.observacion : undefined;

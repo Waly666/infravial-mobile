@@ -32,7 +32,7 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
       msg.includes('network')
     ) {
       return (
-        'No llegamos al servidor (error de red). Comprueba en .env la URL EXPO_PUBLIC_API_BASE_URL: ' +
+        'No llegamos al servidor (error de red). Revisa en Configuración la URL base del backend: ' +
         'desde el celular NO sirve localhost ni 127.0.0.1; usa la IP de tu PC en la WiFi ' +
         '(ej. http://192.168.1.49:3000), que el backend esté encendido y que el firewall de Windows ' +
         'permita conexiones entrantes a ese puerto.'

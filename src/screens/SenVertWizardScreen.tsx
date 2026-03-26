@@ -49,6 +49,7 @@ import {
   uploadSenVertFoto,
 } from '@/services/api/senVertApi';
 import { captureGeolocation } from '@/services/geo/captureLocation';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ObsSvDto, SenVertCatalogoDto } from '@/types/senVert';
 import type { JornadaActivaDto } from '@/types/jornada';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
@@ -140,6 +141,7 @@ export function SenVertWizardScreen(): React.JSX.Element {
   const route = useRoute<Route>();
   const editId = route.params?.id;
   const { jornada } = useJornadaActiva();
+  const { colors } = useAppTheme();
   const apiBase = getApiBaseUrl();
 
   const [paso, setPaso] = useState(1);
@@ -226,15 +228,15 @@ export function SenVertWizardScreen(): React.JSX.Element {
   ): React.JSX.Element {
     return (
       <View style={styles.block}>
-        <Text style={styles.lbl}>{label}</Text>
+        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {options.map((o) => (
             <Pressable
               key={o}
-              style={[styles.chip, value === o && styles.chipOn]}
+              style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]}
               onPress={() => onSelect(o)}
             >
-              <Text style={[styles.chipTxt, value === o && styles.chipTxtOn]} numberOfLines={2}>
+              <Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]} numberOfLines={2}>
                 {o}
               </Text>
             </Pressable>
@@ -353,17 +355,17 @@ export function SenVertWizardScreen(): React.JSX.Element {
 
   if (initLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" />
-        <Text style={styles.loadTxt}>Cargando…</Text>
+        <Text style={[styles.loadTxt, { color: colors.textMuted }]}>Cargando…</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.progress}>
-        <Text style={styles.progressTxt}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View style={[styles.progress, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.progressTxt, { color: colors.secondary }]}>
           Paso {paso} / {TOTAL_PASOS} — ExistSenVert
         </Text>
       </View>
@@ -371,8 +373,8 @@ export function SenVertWizardScreen(): React.JSX.Element {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollPad}>
         {paso === 1 ? (
           <>
-            <Text style={styles.h2}>Tramo de vía</Text>
-            <Text style={styles.sub}>La señal debe asociarse a un inventario `via_tramos`.</Text>
+            <Text style={[styles.h2, { color: colors.text }]}>Tramo de vía</Text>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>La señal debe asociarse a un inventario `via_tramos`.</Text>
             {tramoSel ? (
               <View style={styles.tramoCard}>
                 <Text style={styles.tramoMain}>{tramoSel.via || tramoSel.nomenclatura?.completa || '—'}</Text>
@@ -380,7 +382,7 @@ export function SenVertWizardScreen(): React.JSX.Element {
                   {tramoSel.nomenclatura?.completa} · {tramoSel.municipio}
                 </Text>
                 <Pressable onPress={() => { setTramoSel(null); setField('idViaTramo', ''); setBusqTramo(''); }}>
-                  <Text style={styles.link}>Cambiar tramo</Text>
+                  <Text style={[styles.link, { color: colors.primary }]}>Cambiar tramo</Text>
                 </Pressable>
               </View>
             ) : (
