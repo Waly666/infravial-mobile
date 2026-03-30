@@ -20,6 +20,7 @@ export default (): ExpoConfig => ({
     supportsTablet: true,
   },
   android: {
+    package: 'com.nis00227.infravialmobile',
     /** Manifest: permitir `http://` en desarrollo (tipos de Expo pueden no listarlo). */
     // @ts-expect-error Android manifest — ver https://docs.expo.dev/versions/latest/config/app/#usescleartexttraffic
     usesCleartextTraffic: true,
@@ -34,6 +35,7 @@ export default (): ExpoConfig => ({
     favicon: './assets/favicon.png',
   },
   plugins: [
+    './plugins/withAndroidCleartext',
     'expo-asset',
     'expo-secure-store',
     'expo-sqlite',
@@ -56,5 +58,8 @@ export default (): ExpoConfig => ({
   ],
   extra: {
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? '',
+    eas: {
+      projectId: 'f19d04ae-c6f2-4322-997b-3c0dc129b7cd',
+    },
   },
 });

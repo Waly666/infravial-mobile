@@ -1,34 +1,35 @@
 # InfraVial Mobile
 
-Aplicacion movil de inventario vial construida con `Expo` y `React Native`.
+Aplicación móvil de inventario vial construida con **Expo** y **React Native**.
 
 Permite registrar y consultar:
 
 - `via_tramos`
-- senales verticales
-- senales horizontales
-- cajas de inspeccion
-- controles semaforicos
-- semaforos
+- señales verticales
+- señales horizontales
+- cajas de inspección
+- controles semafóricos
+- semáforos
 
-Tambien soporta trabajo `offline`, almacenamiento local de pendientes y sincronizacion posterior.
+También soporta trabajo **offline**, almacenamiento local de pendientes y sincronización posterior.
 
 ## Requisitos
 
-- `Node.js` 18 o superior
-- `npm`
-- `Expo CLI` via `npx expo`
-- Android Studio / emulador Android o dispositivo fisico con Expo Go o build de desarrollo
+- **Node.js** 18 o superior (recomendado 20 LTS)
+- **npm**
+- **Expo** vía `npx expo` (no hace falta instalar Expo CLI global)
+- Android Studio / emulador Android o dispositivo físico con Expo Go o build de desarrollo
+- Para iOS: Xcode y simulador (solo en macOS)
 
-## Instalacion
+## Instalación
 
 ```bash
 npm install
 ```
 
-## Configuracion
+## Configuración
 
-Crea un archivo `.env` en la raiz del proyecto `mobile` con la URL del backend:
+Crea un archivo `.env` en la raíz del proyecto `mobile` con la URL del backend:
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://TU_BACKEND:PUERTO
@@ -36,12 +37,13 @@ EXPO_PUBLIC_API_BASE_URL=http://TU_BACKEND:PUERTO
 
 Notas:
 
-- la URL no debe terminar en `/`
-- despues de cambiar `.env`, reinicia Expo
+- La URL **no** debe terminar en `/`.
+- Tras cambiar `.env`, reinicia el servidor de Expo.
+- En Android, el proyecto permite tráfico HTTP claro (`cleartext`) para desarrollo; en producción conviene usar HTTPS.
 
-## Ejecucion
+## Ejecución
 
-Iniciar el proyecto:
+Iniciar el proyecto (Metro + menú interactivo):
 
 ```bash
 npm run start
@@ -59,92 +61,124 @@ Abrir en iOS:
 npm run ios
 ```
 
-Ejecutar chequeo de tipos:
+Vista web (opcional):
+
+```bash
+npm run web
+```
+
+Comprobar tipos TypeScript:
 
 ```bash
 npm run typecheck
 ```
 
-## Inicio de sesion
+## Builds con EAS (Expo Application Services)
 
-La app inicia mostrando pantalla de `Login`.
+El archivo `eas.json` define perfiles de build:
 
-- usuario: cedula
-- contrasena: credencial entregada por el backend
+| Perfil        | Uso típico        | Android                          |
+|---------------|-------------------|----------------------------------|
+| `preview`     | pruebas internas  | APK (`distribution`: internal)   |
+| `production`  | tienda / release  | App Bundle (AAB)                 |
+
+Requisitos: cuenta Expo, `eas-cli` y proyecto vinculado. Ejemplos:
+
+```bash
+npx eas-cli build --platform android --profile preview
+npx eas-cli build --platform android --profile production
+```
+
+## Inicio de sesión
+
+La app arranca en la pantalla de **Login**.
+
+- **Usuario:** cédula
+- **Contraseña:** credencial entregada por el backend
 
 ## Modo offline
 
-La app esta pensada para trabajo en campo:
+Pensada para trabajo de campo:
 
-- puede operar en `offline`
-- guarda registros pendientes en almacenamiento local
-- permite editar pendientes desde `Sincronizacion`
-- cuando se pasa a `online`, se pueden sincronizar los pendientes
+- Puede operar **offline**
+- Guarda registros pendientes en almacenamiento local
+- Permite editar pendientes desde **Sincronización**
+- Al volver **online**, se pueden enviar los pendientes al backend
 
-## Sincronizacion
+## Sincronización
 
-Desde la pantalla `Sincronizacion` se puede:
+Desde la pantalla **Sincronización** puedes:
 
-- ver pendientes locales
-- editar pendientes con el formulario visual
-- eliminar pendientes
-- enviar pendientes al backend
+- Ver pendientes locales
+- Editar pendientes con el formulario visual
+- Eliminar pendientes
+- Enviar pendientes al backend
 
 ## Temas y UI
 
-La app incluye:
+- Modo claro / oscuro
+- Colores por módulo
+- Listas y formularios actualizados
 
-- modo claro / oscuro
-- colores por modulo
-- listas y formularios modernizados
+## Estructura del código
 
-## Estructura general
+Carpetas principales:
 
-Carpetas importantes:
+- `src/screens` — pantallas y wizards
+- `src/navigation` — navegación principal
+- `src/services/api` — integración con el backend
+- `src/services/sync` — cola offline y sincronización
+- `src/storage/offline` — persistencia local
+- `src/theme` — tema visual
+- `plugins/` — config plugins de Expo (p. ej. Android)
 
-- `src/screens`: pantallas y wizards
-- `src/navigation`: navegacion principal
-- `src/services/api`: integracion con backend
-- `src/services/sync`: cola offline y sincronizacion
-- `src/storage/offline`: persistencia local
-- `src/theme`: tema visual
+## Módulos principales
 
-## Modulos principales
+- **Tramos** — inventario vial base
+- **Señales verticales** — registro y edición
+- **Señales horizontales** — registro y edición
+- **Cajas** — cajas de inspección
+- **Control semafórico** — controlador y armario
+- **Semáforos** — semáforo, caras, diagnóstico y fotos
 
-- `Tramos`: inventario vial base
-- `Senales verticales`: registro y edicion
-- `Senales horizontales`: registro y edicion
-- `Cajas`: cajas de inspeccion
-- `Control semaforico`: controlador y armario
-- `Semaforos`: semaforo, caras, diagnostico y fotos
+## Solución de problemas
 
-## Troubleshooting
+**La app no conecta al API**
 
-Si la app no conecta:
-
-- revisa `EXPO_PUBLIC_API_BASE_URL`
-- confirma que el backend sea accesible desde el celular o emulador
-- reinicia Expo con cache limpia:
+- Revisa `EXPO_PUBLIC_API_BASE_URL`
+- Comprueba que el backend sea accesible desde el móvil o emulador (misma red, firewall, IP correcta)
+- Reinicia Expo limpiando caché:
 
 ```bash
 npx expo start --clear
 ```
 
-Si algo falla por dependencias:
+**Dependencias o caché corrupta**
+
+En Linux / macOS:
 
 ```bash
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-## Tecnologias
+En Windows (PowerShell), desde la carpeta del proyecto:
 
-- `Expo`
-- `React Native`
-- `TypeScript`
-- `React Navigation`
-- `Axios`
-- `expo-sqlite`
-- `AsyncStorage`
-- `NetInfo`
+```powershell
+Remove-Item -Recurse -Force node_modules, package-lock.json -ErrorAction SilentlyContinue
+npm install
+```
 
+## Tecnologías
+
+- Expo ~54
+- React Native
+- TypeScript
+- React Navigation (stack y tabs)
+- Axios
+- expo-sqlite
+- AsyncStorage
+- NetInfo
+- expo-location
+- expo-image-picker
+- expo-secure-store
