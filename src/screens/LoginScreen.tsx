@@ -10,27 +10,31 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { APP_COPYRIGHT_FOOTER } from '@/constants/branding';
 import { useApiBaseUrlConfig } from '@/config/ApiBaseUrlProvider';
 import { useAuth } from '@/hooks/useAuth';
-import type { RootStackParamList } from '@/navigation/types';
 import { useAppTheme } from '@/theme/ThemeProvider';
+import { radii, shadowCard, space } from '@/theme/designTokens';
 
 export function LoginScreen(): React.JSX.Element {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { login, busy } = useAuth();
-  const { colors } = useAppTheme();
+  const { colors, theme } = useAppTheme();
   const { apiBaseUrl, ready } = useApiBaseUrlConfig();
   const [cedula, setCedula] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+
+  const cardShadow = shadowCard(theme);
 
   async function onSubmit(): Promise<void> {
     setError(null);
-    if (!apiBaseUrl) {
-      setError('Configura la URL del backend antes de ingresar.');
+    if (!apiBaseUrl?.trim()) {
+      setError('No hay URL de servidor disponible.');
       return;
     }
     try {
@@ -42,153 +46,261 @@ export function LoginScreen(): React.JSX.Element {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.background }]}
+      style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
-        <Text style={[styles.title, { color: colors.text }]}>InfraVial</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Ingreso encuestador / admin</Text>
+      <LinearGradient
+        colors={[colors.gradientHeroStart, colors.background, colors.gradientHeroEnd]}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientFill}
+      >
+        <View style={styles.loginColumn}>
+          <View style={styles.centerWrap}>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, cardShadow]}>
+            <LinearGradient
+              colors={[colors.gradientCtaStart, colors.gradientCtaEnd]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.cardTopAccent}
+            />
+            <View style={styles.cardInner}>
+              <View style={[styles.logoRing, { borderColor: colors.primarySoft }]}>
+                <Image source={require('../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+              </View>
+              <Text style={[styles.title, { color: colors.text }]}>InfraVial</Text>
+              <Text style={[styles.subtitle, { color: colors.textMuted }]}>Inventario vial en campo</Text>
 
-        {!ready || !apiBaseUrl ? (
-          <Text style={[styles.warn, { color: colors.warning, backgroundColor: colors.surfaceAlt }]}>
-            Configura primero la dirección del backend desde el botón "Configurar servidor".
+              {!ready ? (
+                <View style={[styles.warnBox, { backgroundColor: colors.warningSoft, borderColor: colors.warning }]}>
+                  <ActivityIndicator size="small" color={colors.warning} />
+                  <Text style={[styles.warnTxt, { color: colors.text }]}>Preparando conexión…</Text>
+                </View>
+              ) : (
+                <Text style={[styles.hint, { color: colors.textMuted }]} numberOfLines={2}>
+                  Servidor: {apiBaseUrl}
+                </Text>
+              )}
+
+              <Text style={[styles.label, { color: colors.textMuted }]}>Usuario (cédula)</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: colors.border,
+                    color: colors.text,
+                    backgroundColor: colors.inputBg,
+                  },
+                ]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={cedula}
+                onChangeText={setCedula}
+                placeholder="Ej. 1234567890"
+                placeholderTextColor={colors.textMuted}
+                editable={!busy}
+              />
+
+              <Text style={[styles.label, { color: colors.textMuted }]}>Contraseña</Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    borderColor: colors.border,
+                    color: colors.text,
+                    backgroundColor: colors.inputBg,
+                  },
+                ]}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
+                editable={!busy}
+              />
+
+              {error ? (
+                <View style={[styles.errRow, { backgroundColor: colors.dangerSoft }]}>
+                  <MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+                  <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={() => void onSubmit()}
+                disabled={busy || !ready || !apiBaseUrl?.trim() || !cedula.trim() || !password}
+                style={({ pressed }) => [
+                  styles.btnOuter,
+                  (busy || !ready || !apiBaseUrl?.trim() || !cedula.trim() || !password) && styles.btnDisabled,
+                  pressed && !(busy || !cedula.trim() || !password) && { transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <LinearGradient
+                  colors={[colors.gradientCtaStart, colors.gradientCtaEnd]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.btnGrad}
+                >
+                  {busy ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>Entrar</Text>
+                      <MaterialCommunityIcons name="arrow-right" size={20} color="#fff" />
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+          </View>
+          <Text
+            style={[
+              styles.footerCopy,
+              {
+                color: 'rgba(255,255,255,0.88)',
+                paddingBottom: Math.max(insets.bottom, 12) + 8,
+              },
+            ]}
+          >
+            {APP_COPYRIGHT_FOOTER}
           </Text>
-        ) : (
-          <Text style={[styles.hint, { color: colors.textMuted }]} numberOfLines={2}>
-            API: {apiBaseUrl}
-          </Text>
-        )}
-
-        <Pressable
-          style={[styles.configBtn, { borderColor: colors.primary, backgroundColor: colors.surfaceAlt }]}
-          onPress={() => navigation.navigate('ApiConfig')}
-        >
-          <Text style={[styles.configBtnTxt, { color: colors.primary }]}>Configurar servidor</Text>
-        </Pressable>
-
-        <Text style={[styles.label, { color: colors.text }]}>Usuario (cédula)</Text>
-        <TextInput
-          style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface }]}
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={cedula}
-          onChangeText={setCedula}
-          placeholder="Ej. 1234567890"
-          placeholderTextColor={colors.textMuted}
-          editable={!busy}
-        />
-
-        <Text style={[styles.label, { color: colors.text }]}>Contraseña</Text>
-        <TextInput
-          style={[styles.input, { borderColor: colors.border, color: colors.text, backgroundColor: colors.surface }]}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          placeholder="••••••••"
-          placeholderTextColor={colors.textMuted}
-          editable={!busy}
-        />
-
-        {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
-
-        <Pressable
-          style={[styles.button, { backgroundColor: colors.primary }, busy && styles.buttonDisabled]}
-          onPress={() => void onSubmit()}
-          disabled={busy || !ready || !apiBaseUrl || !cedula.trim() || !password}
-        >
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Iniciar sesión</Text>
-          )}
-        </Pressable>
-      </View>
+        </View>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  flex: { flex: 1 },
+  gradientFill: {
+    flex: 1,
+  },
+  loginColumn: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  centerWrap: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: space.xl,
+    paddingTop: space.lg,
+  },
+  footerCopy: {
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    paddingHorizontal: space.lg,
+    lineHeight: 16,
   },
   card: {
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
+    overflow: 'hidden',
+  },
+  cardTopAccent: {
+    height: 5,
+    width: '100%',
+  },
+  cardInner: {
+    padding: space.xl,
+  },
+  logoRing: {
+    alignSelf: 'center',
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.md,
   },
   logo: {
-    width: 104,
-    height: 104,
-    alignSelf: 'center',
-    marginBottom: 12,
+    width: 88,
+    height: 88,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '900',
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: 6,
     fontSize: 15,
     textAlign: 'center',
+    fontWeight: '600',
   },
   hint: {
-    marginTop: 12,
-    fontSize: 12,
+    marginTop: space.md,
+    fontSize: 11,
+    textAlign: 'center',
   },
-  warn: {
-    marginTop: 12,
-    fontSize: 13,
-    padding: 10,
-    borderRadius: 8,
-  },
-  configBtn: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingVertical: 10,
+  warnBox: {
+    marginTop: space.md,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: space.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
   },
-  configBtnTxt: {
-    fontSize: 14,
-    fontWeight: '700',
+  warnTxt: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   label: {
-    marginTop: 18,
+    marginTop: space.lg,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  input: {
+    marginTop: 8,
+    borderWidth: 1.5,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  errRow: {
+    marginTop: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: space.sm,
+    borderRadius: radii.sm,
+  },
+  error: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
   },
-  input: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-    fontSize: 16,
+  btnOuter: {
+    marginTop: space.xl,
+    borderRadius: radii.md,
+    overflow: 'hidden',
   },
-  error: {
-    marginTop: 14,
-    fontSize: 14,
+  btnDisabled: {
+    opacity: 0.45,
   },
-  button: {
-    marginTop: 22,
-    paddingVertical: 14,
-    borderRadius: 10,
+  btnGrad: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.65,
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '800',
   },
 });

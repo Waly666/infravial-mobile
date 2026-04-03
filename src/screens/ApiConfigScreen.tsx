@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useApiBaseUrlConfig } from '@/config/ApiBaseUrlProvider';
+import { getFixedProductionApiBaseUrl, isApiBaseUrlLocked } from '@/config/env';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 const EXAMPLES = [
-  'http://72.60.175.120:5001',
+  'https://infravial.cloud/api',
   'http://192.168.1.50:5001',
   'http://10.0.2.2:5001',
   'http://localhost:5001',
@@ -24,7 +26,7 @@ export function ApiConfigScreen(): React.JSX.Element {
   async function save(): Promise<void> {
     const normalized = draft.trim().replace(/\/+$/, '');
     if (!normalized) {
-      Alert.alert('Servidor', 'Ingresa una URL base, por ejemplo: http://72.60.175.120:5001');
+      Alert.alert('Servidor', 'Ingresa una URL base, por ejemplo: https://infravial.cloud/api');
       return;
     }
     if (!/^https?:\/\/.+/i.test(normalized)) {
@@ -40,6 +42,27 @@ export function ApiConfigScreen(): React.JSX.Element {
     Alert.alert('Listo', defaultApiBaseUrl ? 'Se restauró la URL por defecto.' : 'Se limpió la URL personalizada.');
   }
 
+  if (isApiBaseUrlLocked()) {
+    return (
+      <ScrollView
+        style={[styles.root, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
+        <Text style={[styles.title, { color: colors.text }]}>Servidor de API</Text>
+        <Text style={[styles.sub, { color: colors.textMuted }]}>
+          En la app instalada (APK o build de release) la dirección del backend va embebida y no se puede
+          cambiar desde el teléfono.
+        </Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.label, { color: colors.text }]}>URL fija de producción</Text>
+          <Text style={[styles.current, { color: colors.primary }]} selectable>
+            {getFixedProductionApiBaseUrl()}
+          </Text>
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
@@ -47,7 +70,7 @@ export function ApiConfigScreen(): React.JSX.Element {
     >
       <Text style={[styles.title, { color: colors.text }]}>Configuración de backend</Text>
       <Text style={[styles.sub, { color: colors.textMuted }]}>
-        Aquí puedes cambiar el servidor sin editar `.env` ni recompilar la app.
+        Solo en desarrollo: puedes apuntar a otro servidor. En el APK de producción la URL queda fija.
       </Text>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -66,7 +89,7 @@ export function ApiConfigScreen(): React.JSX.Element {
         style={[
           styles.input,
           {
-            backgroundColor: colors.surface,
+            backgroundColor: colors.inputBg,
             borderColor: colors.border,
             color: colors.text,
           },
@@ -76,7 +99,7 @@ export function ApiConfigScreen(): React.JSX.Element {
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
-        placeholder="http://72.60.175.120:5001"
+        placeholder="https://infravial.cloud/api"
         placeholderTextColor={colors.textMuted}
       />
 
@@ -95,14 +118,21 @@ export function ApiConfigScreen(): React.JSX.Element {
         ))}
       </View>
 
-      <View style={[styles.warnBox, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
+      <View style={[styles.warnBox, { backgroundColor: colors.warningSoft, borderColor: colors.warning }]}>
         <Text style={[styles.warnText, { color: colors.text }]}>
           En celular físico normalmente no sirve `localhost` ni `127.0.0.1`; usa la IP o dominio del backend.
         </Text>
       </View>
 
-      <Pressable style={[styles.primaryBtn, { backgroundColor: colors.primary }]} onPress={() => void save()}>
-        <Text style={styles.primaryTxt}>Guardar servidor</Text>
+      <Pressable style={styles.primaryOuter} onPress={() => void save()}>
+        <LinearGradient
+          colors={[colors.gradientCtaStart, colors.gradientCtaEnd]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.primaryBtn}
+        >
+          <Text style={styles.primaryTxt}>Guardar servidor</Text>
+        </LinearGradient>
       </Pressable>
       <Pressable
         style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
@@ -129,7 +159,8 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 10 },
   warnBox: { marginTop: 16, borderWidth: 1, borderRadius: 12, padding: 12 },
   warnText: { fontSize: 13, lineHeight: 18 },
-  primaryBtn: { marginTop: 18, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  primaryOuter: { marginTop: 18, borderRadius: 14, overflow: 'hidden' },
+  primaryBtn: { paddingVertical: 15, alignItems: 'center' },
   primaryTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
   secondaryBtn: { marginTop: 10, borderWidth: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   secondaryTxt: { fontSize: 15, fontWeight: '700' },

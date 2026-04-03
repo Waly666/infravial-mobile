@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-import { getApiBaseUrl, getDefaultApiBaseUrl } from '@/config/env';
+import { getApiBaseUrl, getDefaultApiBaseUrl, isApiBaseUrlLocked } from '@/config/env';
 import { getStoredApiBaseUrlSync, loadStoredApiBaseUrl, saveStoredApiBaseUrl } from '@/config/apiBaseUrlStorage';
 
 type ApiBaseUrlContextValue = {
@@ -22,9 +22,11 @@ export function ApiBaseUrlProvider({ children }: { children: React.ReactNode }):
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const stored = await loadStoredApiBaseUrl();
+      if (__DEV__) {
+        await loadStoredApiBaseUrl();
+      }
       if (cancelled) return;
-      setApiBaseUrlState(stored || defaultApiBaseUrl);
+      setApiBaseUrlState(getApiBaseUrl());
       setReady(true);
     })();
     return () => {
@@ -33,11 +35,17 @@ export function ApiBaseUrlProvider({ children }: { children: React.ReactNode }):
   }, [defaultApiBaseUrl]);
 
   async function setApiBaseUrl(value: string): Promise<void> {
+    if (isApiBaseUrlLocked()) {
+      return;
+    }
     const next = await saveStoredApiBaseUrl(value);
     setApiBaseUrlState(next || defaultApiBaseUrl);
   }
 
   async function resetApiBaseUrl(): Promise<void> {
+    if (isApiBaseUrlLocked()) {
+      return;
+    }
     await saveStoredApiBaseUrl('');
     setApiBaseUrlState(defaultApiBaseUrl);
   }
@@ -46,7 +54,7 @@ export function ApiBaseUrlProvider({ children }: { children: React.ReactNode }):
     () => ({
       apiBaseUrl,
       defaultApiBaseUrl,
-      hasCustomApiBaseUrl: Boolean(getStoredApiBaseUrlSync()),
+      hasCustomApiBaseUrl: __DEV__ && Boolean(getStoredApiBaseUrlSync()),
       ready,
       setApiBaseUrl,
       resetApiBaseUrl,

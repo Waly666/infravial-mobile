@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, InteractionManager, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -44,10 +44,24 @@ export function RootNavigator(): React.JSX.Element {
     }
     syncing.current = true;
     if (shouldBootSync) bootSyncDone.current = true;
-    void Promise.allSettled([syncOutbox(), warmupOfflineData()])
-      .finally(() => {
-        syncing.current = false;
-      });
+
+    /** Evita ANR / “no responde” en Expo Go: pintar tabs primero, luego red + SQLite. */
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let workStarted = false;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      timeoutId = setTimeout(() => {
+        workStarted = true;
+        void Promise.allSettled([syncOutbox(), warmupOfflineData()]).finally(() => {
+          syncing.current = false;
+        });
+      }, 200);
+    });
+
+    return () => {
+      handle.cancel();
+      if (timeoutId != null) clearTimeout(timeoutId);
+      if (!workStarted) syncing.current = false;
+    };
   }, [online, user]);
 
   if (!ready) {
@@ -76,8 +90,10 @@ export function RootNavigator(): React.JSX.Element {
         screenOptions={{
           headerShown: false,
           headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
+          headerTintColor: colors.primary,
           headerTitleAlign: 'center',
+          headerTitleStyle: { fontWeight: '800', fontSize: 17 },
+          headerShadowVisible: false,
         }}
       >
         {user ? (
@@ -86,7 +102,7 @@ export function RootNavigator(): React.JSX.Element {
             <Stack.Screen
               name="ViaTramoWizard"
               component={ViaTramoWizardScreen}
-              options={{ title: 'Nuevo tramo vial', headerBackTitle: 'Atrás' }}
+              options={{ title: 'Nuevo perfil vial', headerBackTitle: 'Atrás' }}
             />
             <Stack.Screen
               name="SenVertWizard"

@@ -1,20 +1,34 @@
 import { useCallback } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useApiBaseUrlConfig } from '@/config/ApiBaseUrlProvider';
+import { isApiBaseUrlLocked } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
 import { useJornadaActiva } from '@/hooks/useJornadaActiva';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { RootStackParamList } from '@/navigation/types';
 import { useNetworkMode } from '@/connectivity/NetworkModeProvider';
+import { APP_COPYRIGHT_FOOTER } from '@/constants/branding';
 import { useAppTheme } from '@/theme/ThemeProvider';
+import { radii, shadowCard, space } from '@/theme/designTokens';
 
 export function HomeScreen(): React.JSX.Element {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, logout, busy } = useAuth();
-  const { mode, setMode, colors } = useAppTheme();
+  const { mode, setMode, colors, theme } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { mode: networkMode, setMode: setNetworkMode } = useNetworkMode();
   const { apiBaseUrl, hasCustomApiBaseUrl } = useApiBaseUrlConfig();
   const online = useOnlineStatus();
@@ -26,297 +40,415 @@ export function HomeScreen(): React.JSX.Element {
     }, [refreshJornada]),
   );
 
+  const cardShadow = shadowCard(theme);
+
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.banner, { backgroundColor: colors.surfaceAlt }]}>
-        <View
-          style={[
-            styles.dot,
-            { backgroundColor: online ? colors.success : colors.danger },
-          ]}
-        />
-        <Text style={[styles.bannerText, { color: colors.text }]}>
-          {online ? 'En línea' : 'Sin conexión / revisando red'}
-        </Text>
-      </View>
-
-      <Text style={[styles.hello, { color: colors.text }]}>
-        {user?.nombres} {user?.apellidos}
-      </Text>
-      <Text style={[styles.meta, { color: colors.textMuted }]}>
-        Cédula: {user?.user} · Rol: {user?.rol}
-      </Text>
-
-      <Text style={[styles.section, { color: colors.text }]}>Servidor/API</Text>
-      <View
-        style={[
-          styles.jornadaCard,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
+    <ScrollView
+      style={[styles.scroll, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: 28 + insets.bottom }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <LinearGradient
+        colors={[colors.gradientHeroStart, colors.gradientHeroEnd]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.hero}
       >
-        <Text style={[styles.jornadaLine, { color: colors.primary }]}>
+        <View style={styles.heroRow}>
+          <View
+            style={[
+              styles.statusPill,
+              { backgroundColor: 'rgba(255,255,255,0.22)' },
+            ]}
+          >
+            <View
+              style={[
+                styles.dot,
+                { backgroundColor: online ? '#86efac' : '#fca5a5' },
+              ]}
+            />
+            <Text style={styles.statusPillTxt}>
+              {online ? 'En línea' : 'Sin conexión'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.heroHello} numberOfLines={2}>
+          Hola,{' '}
+          <Text style={styles.heroName}>
+            {user?.nombres} {user?.apellidos}
+          </Text>
+        </Text>
+        <Text style={styles.heroMeta}>
+          Cédula {user?.user} · Rol {user?.rol}
+        </Text>
+      </LinearGradient>
+
+      <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }, cardShadow]}>
+        <View style={styles.sectionHead}>
+          <MaterialCommunityIcons name="server-network" size={20} color={colors.primary} />
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Servidor / API</Text>
+        </View>
+        <Text style={[styles.monoLine, { color: colors.primary }]} numberOfLines={2}>
           {apiBaseUrl || 'Sin configurar'}
         </Text>
-        <Text style={[styles.jornadaSub, { color: colors.textMuted }]}>
-          {hasCustomApiBaseUrl ? 'Valor personalizado en este teléfono.' : 'Valor por defecto del proyecto.'}
+        <Text style={[styles.cardSub, { color: colors.textMuted }]}>
+          {isApiBaseUrlLocked()
+            ? 'Esta instalación usa la API de producción fija (no editable).'
+            : hasCustomApiBaseUrl
+              ? 'URL personalizada en este dispositivo (solo desarrollo).'
+              : 'Por defecto producción. En desarrollo puedes cambiar el servidor abajo.'}
         </Text>
-        <Pressable
-          style={[styles.configLink, { borderColor: colors.primary }]}
-          onPress={() => navigation.navigate('ApiConfig')}
-        >
-          <Text style={[styles.configLinkTxt, { color: colors.primary }]}>Abrir configuración</Text>
-        </Pressable>
+        {!isApiBaseUrlLocked() ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.linkPill,
+              { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={() => navigation.navigate('ApiConfig')}
+          >
+            <Text style={[styles.linkPillTxt, { color: colors.accent }]}>Cambiar servidor</Text>
+            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.accent} />
+          </Pressable>
+        ) : null}
       </View>
 
-      <View style={styles.themeRow}>
-        <Text style={[styles.section, { marginTop: 0, color: colors.text }]}>Apariencia</Text>
-        <View style={styles.themeButtons}>
+      <Text style={[styles.h3, { color: colors.text }]}>Apariencia</Text>
+      <View style={styles.chipRow}>
+        {(['system', 'light', 'dark'] as const).map((m) => (
           <Pressable
-            style={[
-              styles.themeChip,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-              mode === 'system' && { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
-            ]}
-            onPress={() => void setMode('system')}
-          >
-            <Text style={[styles.themeChipText, { color: colors.text }]}>Sistema</Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.themeChip,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-              mode === 'light' && { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
-            ]}
-            onPress={() => void setMode('light')}
-          >
-            <Text style={[styles.themeChipText, { color: colors.text }]}>Claro</Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.themeChip,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-              mode === 'dark' && { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
-            ]}
-            onPress={() => void setMode('dark')}
-          >
-            <Text style={[styles.themeChipText, { color: colors.text }]}>Oscuro</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.themeRow}>
-        <Text style={[styles.section, { marginTop: 0, color: colors.text }]}>Modo de trabajo</Text>
-        <Text style={[styles.meta, { marginTop: 4, color: colors.textMuted }]}>
-          Offline recomendado en campo. Pasa a Online solo para actualizar/sincronizar.
-        </Text>
-        <View style={styles.themeButtons}>
-          <Pressable
-            style={[
-              styles.themeChip,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-              networkMode === 'offline' && {
-                borderColor: colors.primary,
-                backgroundColor: colors.surfaceAlt,
+            key={m}
+            style={({ pressed }) => [
+              styles.modeChip,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
               },
-            ]}
-            onPress={() => void setNetworkMode('offline')}
-          >
-            <Text style={[styles.themeChipText, { color: colors.text }]}>Offline</Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.themeChip,
-              { borderColor: colors.border, backgroundColor: colors.surface },
-              networkMode === 'online' && {
+              mode === m && {
                 borderColor: colors.primary,
-                backgroundColor: colors.surfaceAlt,
+                backgroundColor: colors.primarySoft,
               },
+              pressed && { opacity: 0.92 },
             ]}
-            onPress={() => void setNetworkMode('online')}
+            onPress={() => void setMode(m)}
           >
-            <Text style={[styles.themeChipText, { color: colors.text }]}>Online</Text>
+            <MaterialCommunityIcons
+              name={m === 'system' ? 'theme-light-dark' : m === 'light' ? 'white-balance-sunny' : 'weather-night'}
+              size={16}
+              color={mode === m ? colors.primary : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.modeChipTxt,
+                { color: colors.text },
+                mode === m && { color: colors.primary, fontWeight: '800' },
+              ]}
+            >
+              {m === 'system' ? 'Sistema' : m === 'light' ? 'Claro' : 'Oscuro'}
+            </Text>
           </Pressable>
-        </View>
+        ))}
       </View>
 
-      <Text style={[styles.section, { color: colors.text }]}>Jornada activa</Text>
+      <Text style={[styles.h3, { color: colors.text }]}>Modo de trabajo</Text>
+      <Text style={[styles.hint, { color: colors.textMuted }]}>
+        En campo suele ir mejor offline; online para sincronizar.
+      </Text>
+      <View style={styles.chipRow}>
+        {(['offline', 'online'] as const).map((nm) => (
+          <Pressable
+            key={nm}
+            style={({ pressed }) => [
+              styles.modeChip,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+              networkMode === nm && {
+                borderColor: colors.accent,
+                backgroundColor: colors.accentSoft,
+              },
+              pressed && { opacity: 0.92 },
+            ]}
+            onPress={() => void setNetworkMode(nm)}
+          >
+            <MaterialCommunityIcons
+              name={nm === 'offline' ? 'cloud-off-outline' : 'cloud-sync-outline'}
+              size={16}
+              color={networkMode === nm ? colors.accent : colors.textMuted}
+            />
+            <Text
+              style={[
+                styles.modeChipTxt,
+                { color: colors.text },
+                networkMode === nm && { color: colors.accent, fontWeight: '800' },
+              ]}
+            >
+              {nm === 'offline' ? 'Offline' : 'Online'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={[styles.h3, { color: colors.text }]}>Jornada activa</Text>
       {jornadaLoading ? (
-        <ActivityIndicator style={{ marginVertical: 8 }} />
+        <ActivityIndicator style={{ marginVertical: space.md }} color={colors.primary} />
       ) : jornada ? (
         <View
           style={[
-            styles.jornadaCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
+            styles.sectionCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.success,
+              borderWidth: 1.5,
+            },
+            cardShadow,
           ]}
         >
-          <Text style={[styles.jornadaLine, { color: colors.success }]}>
+          <View style={[styles.jornadaBadge, { backgroundColor: colors.successSoft }]}>
+            <MaterialCommunityIcons name="map-marker-radius" size={18} color={colors.success} />
+            <Text style={[styles.jornadaBadgeTxt, { color: colors.success }]}>Jornada OK</Text>
+          </View>
+          <Text style={[styles.jornadaMain, { color: colors.text }]}>
             {jornada.municipio ?? '—'}, {jornada.dpto ?? '—'}
           </Text>
-          <Text style={[styles.jornadaSub, { color: colors.textMuted }]}>
-            Supervisor: {jornada.supervisor ?? '—'} · Localidad: {jornada.localidad ?? '—'}
+          <Text style={[styles.cardSub, { color: colors.textMuted }]}>
+            Supervisor: {jornada.supervisor ?? '—'} · {jornada.localidad ?? '—'}
           </Text>
-          <Text style={[styles.jornadaSub, { color: colors.textMuted }]}>Id jornada: {jornada._id}</Text>
+          <Text style={[styles.idTiny, { color: colors.textMuted }]} selectable>
+            {jornada._id}
+          </Text>
         </View>
       ) : (
         <View
           style={[
-            styles.warnCard,
-            { backgroundColor: colors.surface, borderColor: colors.warning },
+            styles.sectionCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.warning,
+              borderWidth: 1.5,
+            },
+            cardShadow,
           ]}
         >
-          <Text style={[styles.warnText, { color: colors.textMuted }]}>
+          <View style={[styles.jornadaBadge, { backgroundColor: colors.warningSoft }]}>
+            <MaterialCommunityIcons name="alert-decagram-outline" size={18} color={colors.warning} />
+            <Text style={[styles.jornadaBadgeTxt, { color: colors.warning }]}>Sin jornada</Text>
+          </View>
+          <Text style={[styles.cardSub, { color: colors.textMuted }]}>
             {jornadaErr
               ? jornadaErr
-              : 'No hay jornada activa (la web tampoco deja guardar un tramo nuevo sin jornada).'}
+              : 'No hay jornada activa; no podrás crear perfiles nuevos hasta que un admin abra una.'}
           </Text>
         </View>
       )}
 
       <Text style={[styles.note, { color: colors.textMuted }]}>
-        El flujo principal es el inventario de <Text style={{ fontWeight: '700' }}>tramos viales</Text>
-        : ve a la pestaña Tramos, registra un nuevo tramo (POST /via-tramos) y, si aplica, la
-        encuesta del tramo desde el mismo listado (secundario / cola offline en Sincronización).
+        El inventario principal son los{' '}
+        <Text style={{ fontWeight: '800', color: colors.primary }}>perfiles viales</Text>: pestaña Perfiles,
+        luego encuesta u offline en Sincronización.
       </Text>
 
       <Pressable
-        style={[styles.outline, { borderColor: colors.primary }, busy && styles.outlineDisabled]}
+        style={({ pressed }) => [
+          styles.logout,
+          { borderColor: colors.danger, backgroundColor: colors.dangerSoft },
+          busy && styles.logoutDisabled,
+          pressed && !busy && { opacity: 0.88 },
+        ]}
         onPress={() => void logout()}
         disabled={busy}
       >
-        <Text style={[styles.outlineText, { color: colors.primary }]}>Cerrar sesión</Text>
+        <MaterialCommunityIcons name="logout" size={18} color={colors.danger} />
+        <Text style={[styles.logoutTxt, { color: colors.danger }]}>Cerrar sesión</Text>
       </Pressable>
-    </View>
+
+      <Text style={[styles.footerCopy, { color: colors.textMuted }]}>{APP_COPYRIGHT_FOOTER}</Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: '#f7f8fa',
+  scroll: { flex: 1 },
+  scrollContent: {},
+  hero: {
+    paddingHorizontal: space.xl,
+    paddingTop: space.lg,
+    paddingBottom: space.xl,
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+    marginBottom: space.lg,
   },
-  banner: {
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: space.sm,
+  },
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8edf3',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  dotOn: {
-    backgroundColor: '#2e7d32',
-  },
-  dotOff: {
-    backgroundColor: '#c62828',
-  },
-  bannerText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#37474f',
-  },
-  hello: {
-    marginTop: 28,
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1a2332',
-  },
-  meta: {
-    marginTop: 8,
-    fontSize: 15,
-    color: '#546e7a',
-  },
-  section: {
-    marginTop: 20,
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#37474f',
-  },
-  themeRow: {
-    marginTop: 18,
-  },
-  themeButtons: {
-    marginTop: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  themeChip: {
-    borderWidth: 1,
-    borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
+    borderRadius: radii.pill,
   },
-  themeChipText: {
+  statusPillTxt: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  dot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  heroHello: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  heroName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  heroMeta: {
+    marginTop: 8,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  sectionCard: {
+    marginHorizontal: space.lg,
+    marginBottom: space.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    padding: space.lg,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: space.sm,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  monoLine: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cardSub: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  linkPill: {
+    marginTop: space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    borderWidth: 1.5,
+  },
+  linkPillTxt: {
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  h3: {
+    marginLeft: space.lg,
+    marginBottom: space.sm,
+    marginTop: 4,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  hint: {
+    marginHorizontal: space.lg,
+    marginBottom: space.sm,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space.sm,
+    marginHorizontal: space.lg,
+    marginBottom: space.lg,
+  },
+  modeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: radii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  modeChipTxt: {
     fontSize: 13,
     fontWeight: '600',
   },
-  jornadaCard: {
+  jornadaBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    marginBottom: space.sm,
+  },
+  jornadaBadgeTxt: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  jornadaMain: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  idTiny: {
     marginTop: 8,
-    backgroundColor: '#e8f5e9',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#c8e6c9',
-  },
-  jornadaLine: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1b5e20',
-  },
-  jornadaSub: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#2e7d32',
-  },
-  warnCard: {
-    marginTop: 8,
-    backgroundColor: '#fff8e1',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ffe082',
-  },
-  warnText: {
-    fontSize: 14,
-    color: '#6d4c41',
-    lineHeight: 20,
+    fontSize: 10,
+    opacity: 0.85,
   },
   note: {
-    marginTop: 24,
+    marginHorizontal: space.lg,
+    marginTop: 8,
+    marginBottom: space.xl,
     fontSize: 14,
-    lineHeight: 20,
-    color: '#607d8b',
+    lineHeight: 21,
   },
-  outline: {
-    marginTop: 'auto',
-    marginBottom: 24,
-    borderWidth: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+  logout: {
+    marginHorizontal: space.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
   },
-  outlineDisabled: {
-    opacity: 0.5,
-  },
-  outlineText: {
+  logoutDisabled: { opacity: 0.45 },
+  logoutTxt: {
     fontSize: 16,
+    fontWeight: '800',
+  },
+  footerCopy: {
+    marginTop: 28,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontSize: 11,
     fontWeight: '600',
-  },
-  configLink: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  configLinkTxt: {
-    fontWeight: '700',
+    letterSpacing: 0.25,
+    lineHeight: 16,
+    paddingHorizontal: space.lg,
+    opacity: 0.92,
   },
 });

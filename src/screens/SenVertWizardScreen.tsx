@@ -17,6 +17,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { DecimalTextField } from '@/components/DecimalTextField';
+import { GeoPreviewMap } from '@/components/GeoPreviewMap';
+import { WizardChipRow } from '@/components/WizardChipRow';
+import { WizardFooterNav } from '@/components/WizardFooterNav';
+import { WizardHero } from '@/components/WizardHero';
 import {
   SV_ACCIONES,
   SV_BANDERAS_OPTS,
@@ -53,6 +57,12 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ObsSvDto, SenVertCatalogoDto } from '@/types/senVert';
 import type { JornadaActivaDto } from '@/types/jornada';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
+import {
+  filtrarTramosPickerPorBusqueda,
+  isLikelyMongoIdSearchInput,
+  normalizeSearchText,
+  nomenclaturaSearchText,
+} from '@/utils/tramoSearch';
 
 const TOTAL_PASOS = 5;
 
@@ -226,24 +236,7 @@ export function SenVertWizardScreen(): React.JSX.Element {
     options: readonly T[],
     onSelect: (v: T) => void,
   ): React.JSX.Element {
-    return (
-      <View style={styles.block}>
-        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {options.map((o) => (
-            <Pressable
-              key={o}
-              style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]}
-              onPress={() => onSelect(o)}
-            >
-              <Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]} numberOfLines={2}>
-                {o}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-    );
+    return <WizardChipRow label={label} value={value} options={options} onSelect={onSelect} />;
   }
 
   async function capturarGps(): Promise<void> {
@@ -260,31 +253,29 @@ export function SenVertWizardScreen(): React.JSX.Element {
   }
 
   const catalogoFiltrado = useMemo(() => {
-    const q = busqCat.trim().toLowerCase();
-    if (!q) return catalogo;
+    const raw = busqCat.trim();
+    if (!raw) return catalogo;
+    if (isLikelyMongoIdSearchInput(raw)) return [];
+    const qn = normalizeSearchText(raw);
     return catalogo.filter(
       (s) =>
-        s.codSenVert?.toLowerCase().includes(q) ||
-        s.descSenVert?.toLowerCase().includes(q) ||
-        (s.clasificacion ?? '').toLowerCase().includes(q),
+        (s.codSenVert && normalizeSearchText(s.codSenVert).startsWith(qn)) ||
+        (s.descSenVert && normalizeSearchText(s.descSenVert).startsWith(qn)) ||
+        (s.clasificacion != null &&
+          normalizeSearchText(String(s.clasificacion)).startsWith(qn)),
     );
   }, [busqCat, catalogo]);
 
-  const tramosFiltrados = useMemo(() => {
-    const q = busqTramo.trim().toLowerCase();
-    if (!q) return tramos;
-    return tramos.filter(
-      (t) =>
-        (t.via ?? '').toLowerCase().includes(q) ||
-        (t.municipio ?? '').toLowerCase().includes(q) ||
-        (t.nomenclatura?.completa ?? '').toLowerCase().includes(q),
-    );
-  }, [busqTramo, tramos]);
+  const tramosFiltrados = useMemo(
+    () => filtrarTramosPickerPorBusqueda(tramos, busqTramo),
+    [busqTramo, tramos],
+  );
 
   function seleccionarTramo(t: ViaTramoListItemDto): void {
     setTramoSel(t);
     setField('idViaTramo', t._id);
-    setBusqTramo(t.via ?? t.nomenclatura?.completa ?? '');
+    const nom = nomenclaturaSearchText(t);
+    setBusqTramo(nom || t.via || t._id);
     setTramoMenu(false);
   }
 
@@ -364,11 +355,13 @@ export function SenVertWizardScreen(): React.JSX.Element {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.progress, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[styles.progressTxt, { color: colors.secondary }]}>
-          Paso {paso} / {TOTAL_PASOS} — ExistSenVert
-        </Text>
-      </View>
+      <WizardHero
+        productTitle="Señal vertical"
+        productSubtitle="ExistSenVert"
+        step={paso}
+        totalSteps={TOTAL_PASOS}
+        modeLabel={editId ? 'Editar' : 'Nuevo'}
+      />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollPad}>
         {paso === 1 ? (
@@ -389,22 +382,40 @@ export function SenVertWizardScreen(): React.JSX.Element {
               <>
                 <TextInput
                   style={styles.inp}
-                  placeholder="Buscar tramo…"
+                  placeholder="Nomenclatura (desde el inicio) o ID Mongo del perfil…"
                   value={busqTramo}
                   onChangeText={(t) => {
                     setBusqTramo(t);
                     setTramoMenu(true);
                   }}
                   onFocus={() => setTramoMenu(true)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
+                {tramoMenu && busqTramo.trim().length > 0 && tramosFiltrados.length === 0 ? (
+                  <View style={styles.drop}>
+                    <Text style={styles.dropEmpty}>No se encontraron perfiles</Text>
+                  </View>
+                ) : null}
                 {tramoMenu && tramosFiltrados.length > 0 ? (
                   <View style={styles.drop}>
-                    {tramosFiltrados.slice(0, 12).map((t) => (
-                      <Pressable key={t._id} style={styles.dropRow} onPress={() => seleccionarTramo(t)}>
-                        <Text style={styles.dropMain}>{t.via || '—'}</Text>
-                        <Text style={styles.dropSub}>{t.nomenclatura?.completa} · {t.municipio}</Text>
-                      </Pressable>
-                    ))}
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                      style={styles.dropScroll}
+                    >
+                      {tramosFiltrados.map((t) => (
+                        <Pressable key={t._id} style={styles.dropRow} onPress={() => seleccionarTramo(t)}>
+                          <Text style={styles.dropMain}>{t.via || '—'}</Text>
+                          <Text style={styles.dropSub}>
+                            {nomenclaturaSearchText(t) || t.nomenclatura?.completa || '—'} · {t.municipio ?? ''}
+                          </Text>
+                          <Text style={styles.dropId} numberOfLines={1}>
+                            {t._id}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
                   </View>
                 ) : null}
               </>
@@ -429,6 +440,14 @@ export function SenVertWizardScreen(): React.JSX.Element {
               value={form.lng}
               variant="coord"
               onCommit={(n) => setField('lng', n)}
+            />
+            <GeoPreviewMap
+              caption="Vista en mapa"
+              lat={form.lat}
+              lng={form.lng}
+              textMuted={colors.textMuted}
+              borderColor={colors.border}
+              surfaceColor={colors.surfaceAlt}
             />
           </>
         ) : null}
@@ -572,20 +591,17 @@ export function SenVertWizardScreen(): React.JSX.Element {
         ) : null}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable style={[styles.navBtn, paso === 1 && styles.dis]} disabled={paso === 1} onPress={() => setPaso((p) => Math.max(1, p - 1))}>
-          <Text>Anterior</Text>
-        </Pressable>
-        {paso < TOTAL_PASOS ? (
-          <Pressable style={styles.navPri} onPress={() => setPaso((p) => Math.min(TOTAL_PASOS, p + 1))}>
-            <Text style={styles.navPriTxt}>Siguiente</Text>
-          </Pressable>
-        ) : (
-          <Pressable style={[styles.navPri, saving && styles.dis]} disabled={saving} onPress={() => void guardar()}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.navPriTxt}>Guardar</Text>}
-          </Pressable>
-        )}
-      </View>
+      <WizardFooterNav
+        onPrev={() => setPaso((p) => Math.max(1, p - 1))}
+        prevDisabled={paso === 1}
+        primaryLabel={paso < TOTAL_PASOS ? 'Siguiente' : 'Guardar'}
+        onPrimary={() => {
+          if (paso < TOTAL_PASOS) setPaso((p) => Math.min(TOTAL_PASOS, p + 1));
+          else void guardar();
+        }}
+        primaryDisabled={paso >= TOTAL_PASOS && saving}
+        primaryLoading={paso >= TOTAL_PASOS && saving}
+      />
 
       <Modal visible={galeriaOpen} transparent animationType="slide">
         <View style={styles.modalBg}>
@@ -646,8 +662,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0f141a' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f141a' },
   loadTxt: { marginTop: 8, color: '#a7bacb' },
-  progress: { padding: 10, backgroundColor: '#18212b', borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
-  progressTxt: { fontWeight: '700', color: '#a06ac8' },
   scroll: { flex: 1 },
   scrollPad: { padding: 16, paddingBottom: 28 },
   h2: { fontSize: 18, fontWeight: '700', color: '#e8eef5', marginBottom: 6 },
@@ -664,20 +678,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#e8eef5',
   },
-  chip: {
-    marginRight: 8,
-    marginBottom: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: '#202b36',
-    borderWidth: 1,
-    borderColor: '#2d3b49',
-    maxWidth: 260,
-  },
-  chipOn: { backgroundColor: '#a06ac8' },
-  chipTxt: { fontSize: 11, color: '#a7bacb' },
-  chipTxtOn: { color: '#fff', fontWeight: '700' },
   tramoCard: {
     backgroundColor: '#18212b',
     padding: 14,
@@ -693,12 +693,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#2d3b49',
-    maxHeight: 220,
+    maxHeight: 280,
     marginTop: 4,
+    overflow: 'hidden',
   },
-  dropRow: { padding: 12, borderBottomWidth: 1, borderColor: '#f5f5f5' },
-  dropMain: { fontWeight: '700' },
-  dropSub: { fontSize: 12, color: '#a7bacb' },
+  dropScroll: { maxHeight: 276 },
+  dropEmpty: { padding: 14, color: '#a7bacb', fontSize: 14 },
+  dropRow: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
+  dropMain: { fontWeight: '700', color: '#e8eef5' },
+  dropSub: { fontSize: 12, color: '#a7bacb', marginTop: 2 },
+  dropId: { fontSize: 10, color: '#6b7c8f', marginTop: 4, fontFamily: 'monospace' },
   gpsBtn: { backgroundColor: '#a06ac8', padding: 14, borderRadius: 10, alignItems: 'center', marginBottom: 12 },
   gpsTxt: { color: '#fff', fontWeight: '700' },
   dis: { opacity: 0.5 },
@@ -714,10 +718,6 @@ const styles = StyleSheet.create({
   camBtn: { backgroundColor: '#4a8bc0', padding: 14, borderRadius: 10, alignItems: 'center' },
   camBtnTxt: { color: '#fff', fontWeight: '700' },
   warnLink: { color: '#c62828', marginTop: 8, fontWeight: '600' },
-  footer: { flexDirection: 'row', gap: 10, padding: 12, borderTopWidth: 1, borderColor: '#2d3b49', backgroundColor: '#18212b' },
-  navBtn: { flex: 1, padding: 14, alignItems: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#2d3b49' },
-  navPri: { flex: 1, padding: 14, alignItems: 'center', borderRadius: 10, backgroundColor: '#a06ac8' },
-  navPriTxt: { color: '#fff', fontWeight: '700' },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#18212b', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '88%', borderWidth: 1, borderColor: '#2d3b49' },
   modalTit: { fontSize: 17, fontWeight: '700', marginBottom: 10, color: '#e8eef5' },

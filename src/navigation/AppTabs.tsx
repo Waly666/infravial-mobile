@@ -1,5 +1,7 @@
+import type { JSX } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HomeScreen } from '@/screens/HomeScreen';
 import { CajaInspListScreen } from '@/screens/CajaInspListScreen';
@@ -8,8 +10,10 @@ import { SemaforoListScreen } from '@/screens/SemaforoListScreen';
 import { SenVertListScreen } from '@/screens/SenVertListScreen';
 import { SenHorListScreen } from '@/screens/SenHorListScreen';
 import { SyncScreen } from '@/screens/SyncScreen';
+import { PHOSPHOR_TAB_VISUAL, PhosphorTabBarIcon, type PhosphorTabRouteName } from '@/navigation/phosphorTabIcons';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { TramosListScreen } from '@/screens/TramosListScreen';
+import { shadowTabBar } from '@/theme/designTokens';
 
 export type AppTabParamList = {
   Tramos: undefined;
@@ -24,17 +28,58 @@ export type AppTabParamList = {
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
-export function AppTabs(): React.JSX.Element {
-  const { colors } = useAppTheme();
+function mkTabIcon(route: PhosphorTabRouteName, inactiveColor: string) {
+  return ({ focused, size }: { focused: boolean; color: string; size: number }) => (
+    <PhosphorTabBarIcon routeName={route} focused={focused} size={size} inactiveColor={inactiveColor} />
+  );
+}
+
+export function AppTabs(): JSX.Element {
+  const { colors, theme } = useAppTheme();
+  const tabShadow = shadowTabBar(theme);
+  const inactive = colors.tabInactive;
+  const insets = useSafeAreaInsets();
+  const tabPadBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 10);
+  const tabBarContentHeight = Platform.OS === 'ios' ? 52 : 50;
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerTitleAlign: 'center',
-        headerStyle: { backgroundColor: colors.surface },
+        headerStyle: {
+          backgroundColor: colors.surface,
+          ...Platform.select({
+            ios: {
+              shadowOpacity: 0,
+              borderBottomWidth: 0,
+            },
+            android: { elevation: 0 },
+          }),
+        },
         headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.tabInactive,
+        headerTitleStyle: {
+          fontWeight: '800',
+          fontSize: 17,
+          letterSpacing: -0.3,
+        },
+        headerShadowVisible: false,
+        tabBarStyle: {
+          backgroundColor: colors.tabBar,
+          borderTopWidth: 0,
+          paddingTop: 6,
+          paddingBottom: tabPadBottom,
+          height: tabBarContentHeight + tabPadBottom,
+          ...tabShadow,
+        },
+        tabBarInactiveTintColor: inactive,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '800',
+          marginBottom: 2,
+        },
+        tabBarItemStyle: {
+          paddingTop: 4,
+        },
       }}
     >
       <Tab.Screen
@@ -42,20 +87,20 @@ export function AppTabs(): React.JSX.Element {
         component={HomeScreen}
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home-outline" color={color} size={size} />
-          ),
+          headerTitle: 'Inicio',
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.Home.active,
+          tabBarIcon: mkTabIcon('Home', inactive),
         }}
       />
       <Tab.Screen
         name="Tramos"
         component={TramosListScreen}
         options={{
-          title: 'Tramos',
+          title: 'Perfiles',
+          tabBarLabel: 'Perfiles',
           headerTitle: 'Inventario vial',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="road-variant" color={color} size={size} />
-          ),
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.Tramos.active,
+          tabBarIcon: mkTabIcon('Tramos', inactive),
         }}
       />
       <Tab.Screen
@@ -64,9 +109,8 @@ export function AppTabs(): React.JSX.Element {
         options={{
           title: 'Señales V.',
           headerTitle: 'Señales verticales',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="traffic-cone" color={color} size={size} />
-          ),
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.SenVert.active,
+          tabBarIcon: mkTabIcon('SenVert', inactive),
         }}
       />
       <Tab.Screen
@@ -75,9 +119,8 @@ export function AppTabs(): React.JSX.Element {
         options={{
           title: 'Señales H.',
           headerTitle: 'Señales horizontales',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="minus-circle-outline" color={color} size={size} />
-          ),
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.SenHor.active,
+          tabBarIcon: mkTabIcon('SenHor', inactive),
         }}
       />
       <Tab.Screen
@@ -86,9 +129,8 @@ export function AppTabs(): React.JSX.Element {
         options={{
           title: 'Cajas',
           headerTitle: 'Cajas de inspección',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="package-variant-closed" color={color} size={size} />
-          ),
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.CajasInsp.active,
+          tabBarIcon: mkTabIcon('CajasInsp', inactive),
         }}
       />
       <Tab.Screen
@@ -97,9 +139,8 @@ export function AppTabs(): React.JSX.Element {
         options={{
           title: 'Control',
           headerTitle: 'Control semafórico',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cog-outline" color={color} size={size} />
-          ),
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.ControlSem.active,
+          tabBarIcon: mkTabIcon('ControlSem', inactive),
         }}
       />
       <Tab.Screen
@@ -108,19 +149,18 @@ export function AppTabs(): React.JSX.Element {
         options={{
           title: 'Semáforos',
           headerTitle: 'Semáforos',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="traffic-light-outline" color={color} size={size} />
-          ),
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.Semaforos.active,
+          tabBarIcon: mkTabIcon('Semaforos', inactive),
         }}
       />
       <Tab.Screen
         name="Sync"
         component={SyncScreen}
         options={{
-          title: 'Sincronización',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="sync" color={color} size={size} />
-          ),
+          title: 'Sync',
+          headerTitle: 'Sincronización',
+          tabBarActiveTintColor: PHOSPHOR_TAB_VISUAL.Sync.active,
+          tabBarIcon: mkTabIcon('Sync', inactive),
         }}
       />
     </Tab.Navigator>

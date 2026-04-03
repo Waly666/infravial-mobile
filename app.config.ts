@@ -10,7 +10,7 @@ export default (): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'automatic',
   splash: {
     image: './assets/splash-icon.png',
     resizeMode: 'contain',
@@ -57,7 +57,7 @@ export default (): ExpoConfig => ({
     ],
   ],
   extra: {
-    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? '',
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://infravial.cloud/api',
     eas: {
       projectId: 'f19d04ae-c6f2-4322-997b-3c0dc129b7cd',
     },

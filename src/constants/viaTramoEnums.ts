@@ -1,4 +1,4 @@
-/** Copiados de `via-tramo-form.ts` (Angular). */
+/** Deben coincidir con `backend/models/ViaTramo.js` (TIPOS_UBIC_VALIDOS, SECTORES_VIA_VALIDOS, ZONAS_VIA_VALIDOS). */
 export const TIPOS_LOCALIDAD = [
   'Cabecera Municipal',
   'Corregimiento',
@@ -6,16 +6,26 @@ export const TIPOS_LOCALIDAD = [
   'Centro Poblado',
 ] as const;
 
+/** Campo API tipoUbic — en formulario web la etiqueta es "Diseño" */
 export const TIPOS_UBIC = [
-  'Tramo',
-  'Puente vehicular',
-  'Puente peatonal',
-  'Deprimido',
-  'Elevado',
-  'Túnel',
+  'Glorieta',
+  'Interseccion',
+  'Paso A Nivel',
+  'Ponton',
+  'Cicloruta',
+  'Paso elevado',
+  'Paso Inferior',
+  'Peatonal',
+  'Puente',
+  'Tramo de Via',
+  'Tunel',
 ] as const;
 
 export const TIPOS_VIA = ['Urbana', 'Rural'] as const;
+
+export const SECTORES_VIA = ['Residencial', 'Industrial', 'Comercial'] as const;
+
+export const ZONAS_VIA = ['Escolar', 'Deportiva', 'Turística', 'Privada', 'Militar', 'Hospitalaria'] as const;
 
 export const CLASES_VIA = [
   'Autopista',
@@ -61,7 +71,18 @@ export const DISENIO_GEOM = ['Curva', 'Recta'] as const;
 
 export const INCLINACION_VIA = ['Plano', 'Pendiente'] as const;
 
-export const SENTIDO_VIAL = ['Unidireccional', 'Bidireccional', 'Sin_Definir'] as const;
+export const SENTIDO_VIAL_NUEVOS = [
+  'Un sentido',
+  'Doble Sentido',
+  'Reversible',
+  'Contraflujo',
+  'Ciclo vía',
+] as const;
+
+export const SENTIDO_VIAL_LEGADO = ['Unidireccional', 'Bidireccional', 'Sin_Definir'] as const;
+
+/** Nuevos primero; legado para tramos ya guardados */
+export const SENTIDO_VIAL = [...SENTIDO_VIAL_NUEVOS, ...SENTIDO_VIAL_LEGADO] as const;
 
 export const CONDICIONES_VIA = [
   'Aceite',

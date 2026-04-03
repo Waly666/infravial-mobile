@@ -22,6 +22,7 @@ export async function warmupOfflineData(): Promise<void> {
   const jornada = await fetchJornadaActiva().catch(() => null);
   const filtro = jornada?.codMunicipio ? { munDivipol: jornada.codMunicipio } : undefined;
 
+  /** Dos oleadas reducen picos de CPU/red y congelamientos en Expo Go. */
   await Promise.allSettled([
     fetchViaTramos(),
     fetchExistSenVertRegistros(),
@@ -32,6 +33,9 @@ export async function warmupOfflineData(): Promise<void> {
     fetchZats(),
     fetchComunas(),
     fetchBarrios(),
+  ]);
+
+  await Promise.allSettled([
     fetchZats(filtro),
     fetchComunas(filtro),
     fetchBarrios(filtro),

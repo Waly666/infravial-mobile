@@ -17,6 +17,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { DecimalTextField } from '@/components/DecimalTextField';
+import { GeoPreviewMap } from '@/components/GeoPreviewMap';
+import { WizardChipRow } from '@/components/WizardChipRow';
+import { WizardFooterNav } from '@/components/WizardFooterNav';
+import { WizardHero } from '@/components/WizardHero';
 import {
   SH_ACCIONES,
   SH_CLASES_LINEA,
@@ -46,6 +50,12 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import type { DemarcacionDto, ExistSenHorListItemDto, ObsShDto, UbicSenHorDto } from '@/types/senHor';
 import type { JornadaActivaDto } from '@/types/jornada';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
+import {
+  filtrarTramosPickerPorBusqueda,
+  isLikelyMongoIdSearchInput,
+  normalizeSearchText,
+  nomenclaturaSearchText,
+} from '@/utils/tramoSearch';
 
 const TOTAL_PASOS = 4;
 
@@ -191,38 +201,26 @@ export function SenHorWizardScreen(): React.JSX.Element {
   }
 
   function chipRow<T extends string>(label: string, value: string, options: readonly T[], onSelect: (v: T) => void): React.JSX.Element {
-    return (
-      <View style={styles.block}>
-        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {options.map((o) => (
-            <Pressable key={o} style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]} onPress={() => onSelect(o)}>
-              <Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]} numberOfLines={2}>
-                {o}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-    );
+    return <WizardChipRow label={label} value={value} options={options} onSelect={onSelect} />;
   }
 
   const demFiltrado = useMemo(() => {
-    const q = busqDem.trim().toLowerCase();
-    if (!q) return dems;
+    const raw = busqDem.trim();
+    if (!raw) return dems;
+    if (isLikelyMongoIdSearchInput(raw)) return [];
+    const qn = normalizeSearchText(raw);
     return dems.filter(
       (d) =>
-        (d.codDem ?? '').toLowerCase().includes(q) ||
-        (d.descripcion ?? '').toLowerCase().includes(q) ||
-        (d.claseDem ?? '').toLowerCase().includes(q),
+        (d.codDem && normalizeSearchText(d.codDem).startsWith(qn)) ||
+        (d.descripcion && normalizeSearchText(d.descripcion).startsWith(qn)) ||
+        (d.claseDem && normalizeSearchText(d.claseDem).startsWith(qn)),
     );
   }, [busqDem, dems]);
 
-  const tramosFiltrados = useMemo(() => {
-    const q = busqTramo.trim().toLowerCase();
-    if (!q) return tramos;
-    return tramos.filter((t) => (t.via ?? '').toLowerCase().includes(q) || (t.nomenclatura?.completa ?? '').toLowerCase().includes(q));
-  }, [busqTramo, tramos]);
+  const tramosFiltrados = useMemo(
+    () => filtrarTramosPickerPorBusqueda(tramos, busqTramo),
+    [busqTramo, tramos],
+  );
 
   function seleccionarDem(d: DemarcacionDto): void {
     setDemSel(d);
@@ -235,7 +233,8 @@ export function SenHorWizardScreen(): React.JSX.Element {
     setTramoSel(t);
     setField('idViaTramo', t._id);
     setTramoOpen(false);
-    setBusqTramo(t.via ?? t.nomenclatura?.completa ?? '');
+    const nom = nomenclaturaSearchText(t);
+    setBusqTramo(nom || t.via || t._id);
   }
 
   async function tomarFoto(): Promise<void> {
@@ -313,11 +312,13 @@ export function SenHorWizardScreen(): React.JSX.Element {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.progress, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[styles.progressTxt, { color: colors.primary }]}>
-          Paso {paso} / {TOTAL_PASOS} — ExistSenHor
-        </Text>
-      </View>
+      <WizardHero
+        productTitle="Señal horizontal"
+        productSubtitle="ExistSenHor"
+        step={paso}
+        totalSteps={TOTAL_PASOS}
+        modeLabel={editId ? 'Editar' : 'Nuevo'}
+      />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {paso === 1 ? (
@@ -394,6 +395,14 @@ export function SenHorWizardScreen(): React.JSX.Element {
             </Pressable>
             <DecimalTextField label="Lat" value={form.lat} variant="coord" onCommit={(n) => setField('lat', n)} />
             <DecimalTextField label="Lng" value={form.lng} variant="coord" onCommit={(n) => setField('lng', n)} />
+            <GeoPreviewMap
+              caption="Vista en mapa"
+              lat={form.lat}
+              lng={form.lng}
+              textMuted={colors.textMuted}
+              borderColor={colors.border}
+              surfaceColor={colors.surfaceAlt}
+            />
           </>
         ) : null}
 
@@ -433,20 +442,17 @@ export function SenHorWizardScreen(): React.JSX.Element {
         ) : null}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable style={[styles.navBtn, paso === 1 && styles.dis]} disabled={paso === 1} onPress={() => setPaso((p) => Math.max(1, p - 1))}>
-          <Text>Anterior</Text>
-        </Pressable>
-        {paso < TOTAL_PASOS ? (
-          <Pressable style={styles.navPri} onPress={() => setPaso((p) => Math.min(TOTAL_PASOS, p + 1))}>
-            <Text style={styles.navPriTxt}>Siguiente</Text>
-          </Pressable>
-        ) : (
-          <Pressable style={[styles.navPri, saving && styles.dis]} disabled={saving} onPress={() => void guardar()}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.navPriTxt}>Guardar</Text>}
-          </Pressable>
-        )}
-      </View>
+      <WizardFooterNav
+        onPrev={() => setPaso((p) => Math.max(1, p - 1))}
+        prevDisabled={paso === 1}
+        primaryLabel={paso < TOTAL_PASOS ? 'Siguiente' : 'Guardar'}
+        onPrimary={() => {
+          if (paso < TOTAL_PASOS) setPaso((p) => Math.min(TOTAL_PASOS, p + 1));
+          else void guardar();
+        }}
+        primaryDisabled={paso >= TOTAL_PASOS && saving}
+        primaryLoading={paso >= TOTAL_PASOS && saving}
+      />
 
       <Modal visible={demOpen} transparent animationType="slide">
         <View style={styles.modalBg}>
@@ -481,18 +487,31 @@ export function SenHorWizardScreen(): React.JSX.Element {
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTit}>Seleccionar tramo</Text>
-            <TextInput style={styles.inp} placeholder="Buscar vía o nomenclatura…" value={busqTramo} onChangeText={setBusqTramo} />
+            <TextInput
+              style={styles.inp}
+              placeholder="Nomenclatura (inicio) o ID Mongo del perfil…"
+              value={busqTramo}
+              onChangeText={setBusqTramo}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             <Pressable style={styles.modalClose} onPress={() => setTramoOpen(false)}>
               <Text style={styles.link}>Cerrar</Text>
             </Pressable>
-            <ScrollView style={{ maxHeight: 420 }}>
+            <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+              {busqTramo.trim().length > 0 && tramosFiltrados.length === 0 ? (
+                <Text style={styles.galDesc}>Sin coincidencias</Text>
+              ) : null}
               {tramosFiltrados.map((t) => (
                 <Pressable key={t._id} style={styles.galRow} onPress={() => seleccionarTramo(t)}>
                   <View style={[styles.galThumb, styles.galPh]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.galCod}>{t.via ?? '—'}</Text>
                     <Text style={styles.galDesc} numberOfLines={2}>
-                      {t.nomenclatura?.completa ?? '—'} · {t.municipio ?? ''}
+                      {nomenclaturaSearchText(t) || t.nomenclatura?.completa || '—'} · {t.municipio ?? ''}
+                    </Text>
+                    <Text style={styles.tramoMongoId} numberOfLines={1}>
+                      {t._id}
                     </Text>
                   </View>
                 </Pressable>
@@ -534,8 +553,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0f141a' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f141a' },
   loadTxt: { marginTop: 10, color: '#a7bacb' },
-  progress: { padding: 12, backgroundColor: '#18212b', borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
-  progressTxt: { fontWeight: '700', color: '#4a8bc0' },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 32 },
   h2: { fontSize: 18, fontWeight: '700', color: '#e8eef5', marginBottom: 10 },
@@ -563,10 +580,6 @@ const styles = StyleSheet.create({
   selCod: { marginTop: 10, fontSize: 16, fontWeight: '800', color: '#e8eef5' },
   selDesc: { marginTop: 6, color: '#a7bacb' },
   link: { color: '#1565c0', fontWeight: '700', marginTop: 10 },
-  footer: { flexDirection: 'row', gap: 10, padding: 12, borderTopWidth: 1, borderTopColor: '#2d3b49', backgroundColor: '#18212b' },
-  navBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#2d3b49' },
-  navPri: { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#4a8bc0' },
-  navPriTxt: { fontWeight: '700', color: '#fff' },
   dis: { opacity: 0.45 },
   pickBtn: { borderWidth: 1, borderColor: '#2d3b49', borderRadius: 8, padding: 12, backgroundColor: '#18212b' },
   pickTxt: { fontSize: 14, color: '#e8eef5' },
@@ -583,6 +596,7 @@ const styles = StyleSheet.create({
   galPh: { backgroundColor: '#202b36' },
   galCod: { fontWeight: '800', color: '#e8eef5' },
   galDesc: { color: '#a7bacb', marginTop: 4 },
+  tramoMongoId: { fontSize: 10, color: '#6b7c8f', marginTop: 4, fontFamily: 'monospace' },
   modalRow: { paddingVertical: 12, borderBottomWidth: 1, borderColor: '#2d3b49' },
   modalRowTxt: { fontSize: 15, color: '#e8eef5' },
 });

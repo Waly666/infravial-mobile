@@ -1,25 +1,32 @@
+import type { JSX } from 'react';
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PersonSimpleWalk } from 'phosphor-react-native';
 
+import {
+  LIST_HORIZONTAL_PAD,
+  ListCardActions,
+  ListEmptyState,
+  ListGradientCta,
+  ListHint,
+  ListJornadaStripe,
+  ListLoadingBlock,
+  ListOnlineBanner,
+  ListPillButton,
+  ListRecordCard,
+  ListResultCount,
+  ListSearchField,
+} from '@/components/inventory/InventoryListChrome';
 import { useAuth } from '@/hooks/useAuth';
 import { useJornadaActiva } from '@/hooks/useJornadaActiva';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { LIST_SEN_HOR_VIVID } from '@/navigation/phosphorTabIcons';
 import type { RootStackParamList } from '@/navigation/types';
 import { deleteExistSenHor, fetchExistSenHorRegistros } from '@/services/api/senHorApi';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ExistSenHorListItemDto } from '@/types/senHor';
+import { matchesExistInventoryListRow } from '@/utils/tramoSearch';
 
 function tramoLabel(r: ExistSenHorListItemDto): string {
   const t = r.idViaTramo;
@@ -29,28 +36,35 @@ function tramoLabel(r: ExistSenHorListItemDto): string {
   return String(t ?? '—');
 }
 
-export function SenHorListScreen(): React.JSX.Element {
+export function SenHorListScreen(): JSX.Element {
   const navigation = useNavigation();
-  const { colors, theme } = useAppTheme();
+  const { colors } = useAppTheme();
   const online = useOnlineStatus();
   const { user } = useAuth();
   const { jornada, refresh: refreshJornada } = useJornadaActiva();
   const [registros, setRegistros] = useState<ExistSenHorListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [busqueda, setBusqueda] = useState('');
 
   const canAdmin = user?.rol === 'admin' || user?.rol === 'supervisor';
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const fetchList = useCallback(async () => {
     try {
       setRegistros(await fetchExistSenHorRegistros());
     } catch {
       setRegistros([]);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      await fetchList();
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchList]);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,6 +72,11 @@ export function SenHorListScreen(): React.JSX.Element {
       void refreshJornada();
     }, [load, refreshJornada]),
   );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void fetchList().finally(() => setRefreshing(false));
+  }, [fetchList]);
 
   function openWizard(id?: string): void {
     const parent = navigation.getParent();
@@ -85,116 +104,97 @@ export function SenHorListScreen(): React.JSX.Element {
     ]);
   }
 
-  const q = busqueda.trim().toLowerCase();
-  const filtrados = q
-    ? registros.filter(
-        (r) =>
-          (r.codSeHor ?? '').toLowerCase().includes(q) ||
-          tramoLabel(r).toLowerCase().includes(q) ||
-          (r.estadoDem ?? '').toLowerCase().includes(q) ||
-          (r.material ?? '').toLowerCase().includes(q) ||
-          r._id.toLowerCase().includes(q),
+  const qTrim = busqueda.trim();
+  const filtrados = qTrim
+    ? registros.filter((r) =>
+        matchesExistInventoryListRow(busqueda, r, {
+          cod: r.codSeHor,
+          idViaTramo: r.idViaTramo,
+          extraPrefixFields: [r.estadoDem, r.material],
+        }),
       )
     : registros;
 
+  const listEmpty = (): JSX.Element | null => {
+    if (loading && !refreshing) return <ListLoadingBlock />;
+    if (filtrados.length > 0) return null;
+    if (qTrim.length > 0 && registros.length > 0) {
+      return (
+        <ListEmptyState icon="filter-remove-outline" title="Sin coincidencias" hint="Ajusta la búsqueda." />
+      );
+    }
+    return (
+      <ListEmptyState
+        iconHaloColor="rgba(245,158,11,0.2)"
+        iconNode={<PersonSimpleWalk size={48} color={LIST_SEN_HOR_VIVID} weight="fill" />}
+        title="No hay señales horizontales"
+        hint="Crea el primer registro desde el botón superior."
+      />
+    );
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.banner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={[styles.dot, online ? styles.dotOn : styles.dotOff]} />
-        <Text style={[styles.bannerTxt, { color: colors.text }]}>
-          {online ? 'En línea' : 'Sin conexión'}
-        </Text>
+      <View style={{ paddingHorizontal: LIST_HORIZONTAL_PAD, paddingTop: LIST_HORIZONTAL_PAD }}>
+        <ListOnlineBanner online={online} count={filtrados.length} />
+        <View style={{ marginTop: 12 }}>
+          <ListJornadaStripe
+            jornada={jornada}
+            warnMessage="Sin jornada activa: el alta puede estar bloqueada en el servidor."
+          />
+        </View>
+        <View style={{ marginTop: 14 }}>
+          <ListGradientCta
+            label="Nueva señal horizontal"
+            leading={<PersonSimpleWalk size={22} color="#fff" weight="fill" />}
+            onPress={() => openWizard()}
+            disabled={!jornada}
+          />
+        </View>
+        <ListHint>ExistSenHor — enlazada a perfil vial y catálogos de demarcación.</ListHint>
+        <ListSearchField
+          value={busqueda}
+          onChangeText={setBusqueda}
+          placeholder="Código dem., nomenclatura / ID tramo, ID registro…"
+          autoCapitalize="none"
+        />
+        <ListResultCount total={registros.length} filtered={filtrados.length} />
       </View>
-
-      {jornada ? (
-        <Text style={[styles.jornadaOk, { color: colors.success }]}>
-          Jornada: {jornada.municipio} — {jornada.supervisor}
-        </Text>
-      ) : (
-        <Text style={[styles.jornadaWarn, { color: colors.warning }]}>
-          Sin jornada activa: el alta de señales horizontales puede estar bloqueada en el servidor.
-        </Text>
-      )}
-
-      <Pressable
-        style={[
-          styles.cta,
-          { backgroundColor: '#111827', borderColor: '#111827', shadowColor: '#111827' },
-          !jornada && styles.ctaDis,
-        ]}
-        onPress={() => openWizard()}
-        disabled={!jornada}
-      >
-        <Text style={styles.ctaTxt}>＋ Nueva señal horizontal</Text>
-      </Pressable>
-      <Text style={[styles.hint, { color: colors.textMuted }]}>
-        Tabla ExistSenHor — requiere tramo (`via_tramos`) y catálogos.
-      </Text>
-
-      <TextInput
-        style={[
-          styles.search,
-          { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
-        ]}
-        value={busqueda}
-        onChangeText={setBusqueda}
-        placeholder="Buscar código, vía, estado, material, id…"
-        placeholderTextColor={colors.textMuted}
-        autoCapitalize="none"
-      />
-
-      {loading ? <ActivityIndicator style={{ marginVertical: 16 }} /> : null}
 
       <FlatList
         data={filtrados}
         keyExtractor={(item) => item._id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} />}
-        contentContainerStyle={{ paddingBottom: 24 }}
-        ListEmptyComponent={
-          !loading ? (
-            <Text style={[styles.empty, { color: colors.textMuted }]}>
-              No hay registros o no coinciden con la búsqueda.
-            </Text>
-          ) : null
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
+        contentContainerStyle={[
+          styles.listPad,
+          { paddingHorizontal: LIST_HORIZONTAL_PAD, flexGrow: 1 },
+        ]}
+        ListEmptyComponent={listEmpty}
+        showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                shadowColor: theme === 'dark' ? '#000' : '#8aa3bb',
-              },
-            ]}
-          >
-            <View style={[styles.cardAccent, { backgroundColor: '#111827' }]} />
+          <ListRecordCard>
             <View style={styles.titleRow}>
-              <MaterialCommunityIcons name="minus-circle-outline" size={17} color={colors.secondary} />
-              <Text style={[styles.cod, { color: colors.secondary }]}>{item.codSeHor || '—'}</Text>
+              <PersonSimpleWalk size={24} color={LIST_SEN_HOR_VIVID} weight="fill" />
+              <Text style={[styles.cod, { color: colors.text }]}>{item.codSeHor || '—'}</Text>
             </View>
             <Text style={[styles.meta, { color: colors.textMuted }]} numberOfLines={2}>
               {tramoLabel(item)}
             </Text>
-            <Text style={[styles.est, { color: colors.primary }]}>{item.estadoDem || '— estado'}</Text>
-            <Text style={[styles.id, { color: colors.textMuted }]}>{item._id}</Text>
-            <View style={styles.row}>
-              <Pressable
-                style={[styles.link, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
-                onPress={() => openWizard(item._id)}
-              >
-                <Text style={[styles.linkTxt, { color: colors.primary }]}>Editar</Text>
-              </Pressable>
-              {canAdmin ? (
-                <Pressable
-                  style={[styles.link, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
-                  onPress={() => void eliminar(item._id)}
-                >
-                  <Text style={[styles.del, { color: colors.danger }]}>Eliminar</Text>
-                </Pressable>
-              ) : null}
+            <View style={[styles.estPill, { backgroundColor: colors.accentSoft }]}>
+              <Text style={[styles.estTxt, { color: colors.accent }]}>{item.estadoDem || 'Sin estado'}</Text>
             </View>
-          </View>
+            <Text style={[styles.id, { color: colors.textMuted }]} numberOfLines={1}>
+              {item._id}
+            </Text>
+            <ListCardActions>
+              <ListPillButton label="Editar" variant="primary" onPress={() => openWizard(item._id)} />
+              {canAdmin ? (
+                <ListPillButton label="Eliminar" variant="danger" onPress={() => void eliminar(item._id)} />
+              ) : null}
+            </ListCardActions>
+          </ListRecordCard>
         )}
       />
     </View>
@@ -202,71 +202,12 @@ export function SenHorListScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f7f8fa' },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#fff',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginHorizontal: 12,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotOn: { backgroundColor: '#2e7d32' },
-  dotOff: { backgroundColor: '#c62828' },
-  bannerTxt: { fontSize: 13, color: '#455a64' },
-  jornadaOk: { paddingHorizontal: 12, paddingVertical: 8, color: '#1b5e20', fontWeight: '600' },
-  jornadaWarn: { paddingHorizontal: 12, paddingVertical: 8, color: '#b71c1c', fontSize: 13 },
-  cta: {
-    marginHorizontal: 12,
-    marginTop: 8,
-    paddingVertical: 15,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    elevation: 5,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-  },
-  ctaDis: { opacity: 0.45 },
-  ctaTxt: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  hint: { fontSize: 12, color: '#78909c', marginHorizontal: 12, marginTop: 6, marginBottom: 8 },
-  search: {
-    marginHorizontal: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#cfd8dc',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#fff',
-  },
-  empty: { textAlign: 'center', color: '#78909c', marginTop: 24 },
-  card: {
-    marginHorizontal: 12,
-    marginBottom: 12,
-    padding: 14,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  cardAccent: { width: 52, height: 4, borderRadius: 999, marginBottom: 12 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cod: { fontSize: 17, fontWeight: '700', color: '#004d40' },
-  meta: { fontSize: 14, color: '#455a64', marginTop: 4 },
-  est: { fontSize: 13, color: '#00695c', marginTop: 4 },
-  id: { fontSize: 11, color: '#90a4ae', marginTop: 6 },
-  row: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 10 },
-  link: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderRadius: 999 },
-  linkTxt: { color: '#1565c0', fontWeight: '700' },
-  del: { color: '#c62828', fontWeight: '700', paddingVertical: 6 },
+  root: { flex: 1 },
+  listPad: { paddingBottom: 32 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cod: { flex: 1, fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  meta: { marginTop: 8, fontSize: 14, lineHeight: 20 },
+  estPill: { alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  estTxt: { fontSize: 12, fontWeight: '800' },
+  id: { marginTop: 8, fontSize: 10, opacity: 0.85 },
 });
-

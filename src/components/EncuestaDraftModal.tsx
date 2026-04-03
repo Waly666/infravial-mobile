@@ -19,6 +19,7 @@ import type { EncuestaLocalPayload, PreguntaEncViaDto } from '@/types/encuesta';
 import type { GeolocationCapture } from '@/types/geo';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
 import { newLocalId } from '@/utils/id';
+import { filtrarTramosPickerPorBusqueda, nomenclaturaSearchText } from '@/utils/tramoSearch';
 
 type ValorRta = '' | 'si' | 'no' | 'na';
 
@@ -31,20 +32,6 @@ type Props = {
 };
 
 const TRAMOS_LIST_CAP = 100;
-
-function tramoMatchesBusqueda(t: ViaTramoListItemDto, q: string): boolean {
-  const s = q.trim().toLowerCase();
-  if (!s) {
-    return true;
-  }
-  const id = String(t._id).toLowerCase();
-  return (
-    id.includes(s) ||
-    (t.via ?? '').toLowerCase().includes(s) ||
-    (t.municipio ?? '').toLowerCase().includes(s) ||
-    (t.nomenclatura?.completa ?? '').toLowerCase().includes(s)
-  );
-}
 
 export function EncuestaDraftModal({
   visible,
@@ -74,7 +61,7 @@ export function EncuestaDraftModal({
   }, []);
 
   const tramosVista = useMemo(() => {
-    const f = tramosAll.filter((t) => tramoMatchesBusqueda(t, tramoBusqueda));
+    const f = filtrarTramosPickerPorBusqueda(tramosAll, tramoBusqueda);
     return { list: f.slice(0, TRAMOS_LIST_CAP), totalCoincidencias: f.length };
   }, [tramosAll, tramoBusqueda]);
 
@@ -280,15 +267,16 @@ export function EncuestaDraftModal({
           <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>Tramo del inventario</Text>
             <Text style={styles.subHint}>
-              Mismo listado que la web (`GET /via-tramos`). Busca por vía, municipio, nomenclatura o
-              _id.
+              Igual que en la web: nomenclatura desde el inicio o prefijo / ObjectId Mongo del perfil
+              (`via_tramos`). Toca una fila para rellenar el id editable abajo.
             </Text>
             <TextInput
               style={styles.input}
               value={tramoBusqueda}
               onChangeText={setTramoBusqueda}
-              placeholder="🔍 Buscar…"
+              placeholder="Nomenclatura (inicio) o ID Mongo…"
               autoCapitalize="none"
+              autoCorrect={false}
             />
             {tramosLoading ? (
               <ActivityIndicator style={{ marginVertical: 8 }} />
@@ -317,7 +305,7 @@ export function EncuestaDraftModal({
                       {t.via || '—'}
                     </Text>
                     <Text style={styles.tramoMeta} numberOfLines={1}>
-                      {t.nomenclatura?.completa || '—'} · {t.municipio || '—'}
+                      {nomenclaturaSearchText(t) || t.nomenclatura?.completa || '—'} · {t.municipio || '—'}
                     </Text>
                     <Text style={styles.tramoId} numberOfLines={1}>
                       {t._id}

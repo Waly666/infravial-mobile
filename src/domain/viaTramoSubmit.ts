@@ -52,6 +52,13 @@ export function buildViaTramoCreatePayload(
     }
   }
 
+  for (const campo of ['tipoUbic', 'sector', 'zona'] as const) {
+    const v = body[campo];
+    if (v === '' || v === undefined) {
+      body[campo] = null;
+    }
+  }
+
   // No forzar estado de iluminacion: enviar null cuando no aplica o viene vacio.
   if (body.iluminacArtificial !== true) {
     body.estadoIluminacion = null;

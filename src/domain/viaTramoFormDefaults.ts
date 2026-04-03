@@ -26,6 +26,8 @@ export function createViaTramoFormState(jornada: JornadaActivaDto | null): Recor
     tipoUbic: '',
     calzada: '',
     tipoVia: '',
+    sector: '',
+    zona: '',
     claseVia: '',
     nomenclatura: {
       tipoVia1: '',

@@ -30,7 +30,9 @@ import {
   ESTADOS_VIA,
   ESTADOS_VIA2,
   INCLINACION_VIA,
+  SECTORES_VIA,
   SENTIDO_VIAL,
+  ZONAS_VIA,
   TIPOS_DANO,
   TIPOS_LOCALIDAD,
   TIPOS_NOMENCLATURA,
@@ -59,6 +61,10 @@ import {
   fetchZats,
 } from '@/services/api/catalogViaTramoApi';
 import { DecimalTextField } from '@/components/DecimalTextField';
+import { GeoPreviewMap } from '@/components/GeoPreviewMap';
+import { WizardChipRow } from '@/components/WizardChipRow';
+import { WizardFooterNav } from '@/components/WizardFooterNav';
+import { WizardHero } from '@/components/WizardHero';
 import { fetchRespuestasEncuestaPorTramo, postEncuestaVial } from '@/services/api/encuestaApi';
 import {
   createViaTramo,
@@ -237,7 +243,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
         setPendAlt(0);
       } catch (e) {
         if (!cancelled) {
-          Alert.alert('Tramo', e instanceof Error ? e.message : 'No se pudo cargar el tramo');
+          Alert.alert('Perfil vial', e instanceof Error ? e.message : 'No se pudo cargar el perfil');
         }
       } finally {
         if (!cancelled) setEditLoading(false);
@@ -576,12 +582,12 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
       }
 
       Alert.alert(
-        editId ? 'Tramo actualizado' : 'Tramo registrado',
+        editId ? 'Perfil actualizado' : 'Perfil registrado',
         `Id: ${idTramo}${warnings.length ? `\n\nAvisos:\n${warnings.join('\n')}` : ''}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar el tramo');
+      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo guardar el perfil');
     } finally {
       setSaving(false);
     }
@@ -593,24 +599,7 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
     options: readonly T[],
     onSelect: (v: T) => void,
   ): React.JSX.Element {
-    return (
-      <View style={styles.block}>
-        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-          {options.map((o) => (
-            <Pressable
-              key={o}
-              style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]}
-              onPress={() => onSelect(o)}
-            >
-              <Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]} numberOfLines={2}>
-                {o}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-    );
+    return <WizardChipRow label={label} value={value} options={options} onSelect={onSelect} />;
   }
 
   function inp(
@@ -680,13 +669,17 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <View style={[styles.progress, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <Text style={[styles.progressTxt, { color: colors.primary }]}>
-          Paso {paso} / {TOTAL_PASOS} — {draftLocalId ? 'Revisar pendiente' : editId ? 'Editar inventario' : 'Inventario (via_tramos)'}
-        </Text>
-        {catalogLoading ? <Text style={[styles.progressSub, { color: colors.textMuted }]}>Cargando catálogos…</Text> : null}
-        {editLoading ? <Text style={[styles.progressSub, { color: colors.textMuted }]}>Cargando tramo…</Text> : null}
-      </View>
+      <WizardHero
+        productTitle="Perfil vial"
+        productSubtitle="Inventario via_tramos"
+        step={paso}
+        totalSteps={TOTAL_PASOS}
+        modeLabel={draftLocalId ? 'Pendiente' : editId ? 'Editar' : 'Nuevo'}
+        statusMessages={[
+          ...(catalogLoading ? ['Cargando catálogos…'] : []),
+          ...(editLoading ? ['Cargando tramo…'] : []),
+        ]}
+      />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         {jornadaLoading ? <ActivityIndicator /> : null}
@@ -768,6 +761,16 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
               variant="coord"
               onCommit={(n) => setField('altitud', n)}
             />
+            <GeoPreviewMap
+              caption="Vista del tramo en mapa"
+              lat={form.lat_inicio}
+              lng={form.lng_inicio}
+              lat2={form.lat_fin}
+              lng2={form.lng_fin}
+              textMuted={colors.textMuted}
+              borderColor={colors.border}
+              surfaceColor={colors.surfaceAlt}
+            />
           </>
         ) : null}
 
@@ -803,9 +806,11 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
             ) : null}
 
             {inp('Nombre de la vía *', 'via')}
-            {chipRow('Tipo ubicación', String(form.tipoUbic ?? ''), TIPOS_UBIC, (v) => setField('tipoUbic', v))}
+            {chipRow('Diseño', String(form.tipoUbic ?? ''), TIPOS_UBIC, (v) => setField('tipoUbic', v))}
             {chipRow('Calzada *', calzada, CALZADAS, (v) => setField('calzada', v))}
             {chipRow('Área (tipo vía) *', String(form.tipoVia ?? ''), TIPOS_VIA, (v) => setField('tipoVia', v))}
+            {chipRow('Sector', String(form.sector ?? ''), SECTORES_VIA, (v) => setField('sector', v))}
+            {chipRow('Zona', String(form.zona ?? ''), ZONAS_VIA, (v) => setField('zona', v))}
             {chipRow('Clase vía', String(form.claseVia ?? ''), CLASES_VIA, (v) => setField('claseVia', v))}
           </>
         ) : null}
@@ -1125,32 +1130,19 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
         ) : null}
       </ScrollView>
 
-      <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-        <Pressable
-          style={[styles.navBtn, paso === 1 && styles.dis]}
-          disabled={paso === 1}
-          onPress={() => setPaso((p) => Math.max(1, p - 1))}
-        >
-          <Text style={[styles.navTxt, { color: colors.text }]}>Anterior</Text>
-        </Pressable>
-        {paso < TOTAL_PASOS ? (
-          <Pressable style={styles.navBtnPri} onPress={() => setPaso((p) => Math.min(TOTAL_PASOS, p + 1))}>
-            <Text style={styles.navTxtPri}>Siguiente</Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            style={[styles.navBtnPri, (saving || editLoading) && styles.dis]}
-            disabled={saving || editLoading}
-            onPress={() => void enviar()}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.navTxtPri}>{editId ? 'Guardar cambios' : 'Guardar tramo'}</Text>
-            )}
-          </Pressable>
-        )}
-      </View>
+      <WizardFooterNav
+        onPrev={() => setPaso((p) => Math.max(1, p - 1))}
+        prevDisabled={paso === 1}
+        primaryLabel={
+          paso < TOTAL_PASOS ? 'Siguiente' : editId ? 'Guardar cambios' : 'Guardar perfil'
+        }
+        onPrimary={() => {
+          if (paso < TOTAL_PASOS) setPaso((p) => Math.min(TOTAL_PASOS, p + 1));
+          else void enviar();
+        }}
+        primaryDisabled={paso >= TOTAL_PASOS && (saving || editLoading)}
+        primaryLoading={paso >= TOTAL_PASOS && saving}
+      />
 
       <Modal visible={pick != null} transparent animationType="fade">
         <Pressable style={styles.modalBackdrop} onPress={() => setPick(null)}>
@@ -1182,9 +1174,6 @@ export function ViaTramoWizardScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#0f141a' },
-  progress: { padding: 12, backgroundColor: '#18212b', borderBottomWidth: 1, borderBottomColor: '#2d3b49' },
-  progressTxt: { fontWeight: '700', color: '#4a8bc0' },
-  progressSub: { fontSize: 12, color: '#8ea2b4', marginTop: 4 },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 32 },
   h2: { fontSize: 18, fontWeight: '700', color: '#e8eef5', marginBottom: 6 },
@@ -1203,18 +1192,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   inpMulti: { minHeight: 72, textAlignVertical: 'top' },
-  chipScroll: { flexGrow: 0 },
-  chip: {
-    marginRight: 8,
-    marginBottom: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#eceff1',
-    maxWidth: 220,
-  },
   chipOn: { backgroundColor: '#1e5a8a' },
-  chipTxt: { fontSize: 12, color: '#37474f' },
   chipTxtOn: { color: '#fff', fontWeight: '700' },
   rowGps: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   gpsBtn: {
@@ -1234,31 +1212,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   secBtnTxt: { color: '#1e5a8a', fontWeight: '600' },
-  footer: {
-    flexDirection: 'row',
-    gap: 10,
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2d3b49',
-    backgroundColor: '#18212b',
-  },
-  navBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#90a4ae',
-  },
-  navBtnPri: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#4a8bc0',
-  },
-  navTxt: { fontWeight: '700', color: '#455a64' },
-  navTxtPri: { fontWeight: '700', color: '#fff' },
   dis: { opacity: 0.45 },
   nomPreview: { fontSize: 15, fontWeight: '600', color: '#1e5a8a', marginBottom: 12 },
   pickBtn: {

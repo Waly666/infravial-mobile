@@ -5,6 +5,10 @@ import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { DecimalTextField } from '@/components/DecimalTextField';
+import { GeoPreviewMap } from '@/components/GeoPreviewMap';
+import { WizardChipRow } from '@/components/WizardChipRow';
+import { WizardFooterNav } from '@/components/WizardFooterNav';
+import { WizardHero } from '@/components/WizardHero';
 import { buildSemaforoPayload } from '@/domain/semaforoSubmit';
 import { createSemaforoFormState } from '@/domain/semaforoFormDefaults';
 import { getApiBaseUrl } from '@/config/env';
@@ -22,6 +26,12 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import type { ControlSemDto } from '@/types/controlSem';
 import type { CaraSemaforoDto, ObsSemaforoDto, SemaforoDto } from '@/types/semaforo';
 import type { ViaTramoListItemDto } from '@/types/viaTramo';
+import {
+  controlSemPickerMatches,
+  filtrarTramosPickerPorBusqueda,
+  nomenclaturaSearchText,
+  rowMongoIdString,
+} from '@/utils/tramoSearch';
 
 const FASES = ['Inventario', 'Programación', 'Diseño', 'Por definir'] as const;
 const ACCIONES = ['Repintar', 'Borrar', 'Mantenimiento', 'Retiro', 'Reemplazo', 'Reposicion', 'Instalacion', 'Otro'] as const;
@@ -147,15 +157,16 @@ export function SemaforoWizardScreen(): React.JSX.Element {
     return () => { cancel = true; };
   }, [draftPayload, editId, jornada?._id]);
 
-  const tramosFiltrados = useMemo(() => {
-    const q = qTramo.trim().toLowerCase();
-    if (!q) return tramos;
-    return tramos.filter((t) => (t.via ?? '').toLowerCase().includes(q) || (t.nomenclatura?.completa ?? '').toLowerCase().includes(q));
-  }, [qTramo, tramos]);
+  const tramosFiltrados = useMemo(
+    () => filtrarTramosPickerPorBusqueda(tramos, qTramo),
+    [qTramo, tramos],
+  );
   const controlesFiltrados = useMemo(() => {
-    const q = qCtrl.trim().toLowerCase();
+    const q = qCtrl.trim();
     if (!q) return controles;
-    return controles.filter((c) => String(c.numExterno ?? '').includes(q) || ((c.idViaTramo && typeof c.idViaTramo === 'object' ? c.idViaTramo.via : '') ?? '').toLowerCase().includes(q));
+    return controles.filter((c) =>
+      controlSemPickerMatches(c as unknown as Record<string, unknown>, q),
+    );
   }, [qCtrl, controles]);
   const tramoSeleccionado = useMemo(() => {
     const id = String(form.idViaTramo ?? '');
@@ -170,10 +181,12 @@ export function SemaforoWizardScreen(): React.JSX.Element {
 
   function chipRow(label: string, value: string, opts: readonly string[], key: string): React.JSX.Element {
     return (
-      <View style={styles.block}>
-        <Text style={[styles.lbl, { color: colors.textMuted }]}>{label}</Text>
-        <ScrollView horizontal>{opts.map((o) => <Pressable key={o} style={[styles.chip, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }, value === o && styles.chipOn]} onPress={() => setForm((f) => ({ ...f, [key]: o }))}><Text style={[styles.chipTxt, { color: colors.text }, value === o && styles.chipTxtOn]}>{o}</Text></Pressable>)}</ScrollView>
-      </View>
+      <WizardChipRow
+        label={label}
+        value={value}
+        options={opts}
+        onSelect={(o) => setForm((f) => ({ ...f, [key]: o }))}
+      />
     );
   }
   function labelObs(raw: unknown): string {
@@ -381,7 +394,12 @@ export function SemaforoWizardScreen(): React.JSX.Element {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ padding: 14 }}>
+      <WizardHero
+        productTitle="Semáforo"
+        productSubtitle="Inventario en campo"
+        modeLabel={draftLocalId ? 'Pendiente' : editId ? 'Editar' : 'Nuevo'}
+      />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 14, paddingBottom: 24 }}>
         <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setTramoOpen(true)}>
           <Text style={{ color: colors.text }}>
             {tramoSeleccionado
@@ -399,6 +417,14 @@ export function SemaforoWizardScreen(): React.JSX.Element {
         <Pressable style={[styles.pick, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => void gps()}><Text style={{ color: colors.text }}>Capturar GPS</Text></Pressable>
         <DecimalTextField label="Lat" value={form.lat} variant="coord" onCommit={(n) => setForm((f) => ({ ...f, lat: n }))} />
         <DecimalTextField label="Lng" value={form.lng} variant="coord" onCommit={(n) => setForm((f) => ({ ...f, lng: n }))} />
+        <GeoPreviewMap
+          caption="Vista en mapa"
+          lat={form.lat}
+          lng={form.lng}
+          textMuted={colors.textMuted}
+          borderColor={colors.border}
+          surfaceColor={colors.surfaceAlt}
+        />
         <DecimalTextField label="Número externo" value={form.numExterno} variant="medida" onCommit={(n) => setForm((f) => ({ ...f, numExterno: n }))} />
         <Text style={[styles.lbl, { color: colors.textMuted }]}>Control de referencia</Text>
         <TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={String(form.controlRef ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, controlRef: v }))} placeholderTextColor={colors.textMuted} />
@@ -414,7 +440,12 @@ export function SemaforoWizardScreen(): React.JSX.Element {
           </View>
         </View>
         {chipRow('Clase semáforo', String(form.claseSem ?? ''), CLASES, 'claseSem')}
-        <View style={styles.block}><Text style={styles.lbl}>Número de caras</Text><ScrollView horizontal>{NUM_CARAS.map((n) => <Pressable key={n} style={[styles.chip, Number(form.numCaras ?? 1) === n && styles.chipOn]} onPress={() => initCaras(n)}><Text style={[styles.chipTxt, Number(form.numCaras ?? 1) === n && styles.chipTxtOn]}>{n}</Text></Pressable>)}</ScrollView></View>
+        <WizardChipRow
+          label="Número de caras"
+          value={String(Number(form.numCaras ?? 1))}
+          options={NUM_CARAS.map(String)}
+          onSelect={(v) => initCaras(Number(v))}
+        />
         {chipRow('Visibilidad óptima', String(form.visibilidadOptima ?? ''), VIS, 'visibilidadOptima')}
         {chipRow('Fase', String(form.fase ?? ''), FASES, 'fase')}
         {chipRow('Acción', String(form.accion ?? ''), ACCIONES, 'accion')}
@@ -565,10 +596,100 @@ export function SemaforoWizardScreen(): React.JSX.Element {
         <Text style={[styles.lbl, { color: colors.textMuted }]}>Notas generales</Text>
         <TextInput style={[styles.inp, { minHeight: 80, backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} multiline value={String(form.notasGenerales ?? '')} onChangeText={(v) => setForm((f) => ({ ...f, notasGenerales: v }))} placeholderTextColor={colors.textMuted} />
       </ScrollView>
-      <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}><Pressable style={[styles.save, saving && styles.dis]} onPress={() => void guardar()} disabled={saving}>{saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveTxt}>Guardar</Text>}</Pressable></View>
+      <WizardFooterNav
+        showPrev={false}
+        primaryLabel="Guardar"
+        onPrimary={() => void guardar()}
+        primaryDisabled={saving}
+        primaryLoading={saving}
+      />
 
-      <Modal visible={tramoOpen} transparent animationType="slide"><View style={styles.modalBg}><View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}><TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={qTramo} onChangeText={setQTramo} placeholder="Buscar tramo..." placeholderTextColor={colors.textMuted} /><ScrollView style={{ maxHeight: 400 }}>{tramosFiltrados.map((t) => <Pressable key={t._id} style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => { setForm((f) => ({ ...f, idViaTramo: t._id })); setTramoOpen(false); }}><Text style={{ fontWeight: '700', color: colors.text }}>{t.via ?? '—'}</Text><Text style={{ color: colors.textMuted }}>{t.nomenclatura?.completa ?? '—'}</Text></Pressable>)}</ScrollView></View></View></Modal>
-      <Modal visible={ctrlOpen} transparent animationType="slide"><View style={styles.modalBg}><View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}><TextInput style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} value={qCtrl} onChangeText={setQCtrl} placeholder="Buscar control..." placeholderTextColor={colors.textMuted} /><ScrollView style={{ maxHeight: 400 }}>{controlesFiltrados.map((c) => <Pressable key={c._id} style={[styles.row, { borderBottomColor: colors.border }]} onPress={() => { setForm((f) => ({ ...f, idControSem: c._id })); setCtrlOpen(false); }}><Text style={{ fontWeight: '700', color: colors.text }}>Control #{c.numExterno ?? '—'}</Text><Text style={{ color: colors.textMuted }}>{typeof c.idViaTramo === 'object' ? (c.idViaTramo?.via ?? '') : ''}</Text></Pressable>)}</ScrollView></View></View></Modal>
+      <Modal visible={tramoOpen} transparent animationType="slide">
+        <View style={styles.modalBg}>
+          <View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <TextInput
+              style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              value={qTramo}
+              onChangeText={setQTramo}
+              placeholder="Nomenclatura (inicio) o ID Mongo del perfil…"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {qTramo.trim().length > 0 && tramosFiltrados.length === 0 ? (
+                <Text style={{ color: colors.textMuted, padding: 12 }}>Sin coincidencias</Text>
+              ) : null}
+              {tramosFiltrados.map((t) => (
+                <Pressable
+                  key={t._id}
+                  style={[styles.row, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setForm((f) => ({ ...f, idViaTramo: t._id }));
+                    setTramoOpen(false);
+                  }}
+                >
+                  <Text style={{ fontWeight: '700', color: colors.text }}>{t.via ?? '—'}</Text>
+                  <Text style={{ color: colors.textMuted }}>
+                    {nomenclaturaSearchText(t) || t.nomenclatura?.completa || '—'} · {t.municipio ?? ''}
+                  </Text>
+                  <Text
+                    style={{ fontSize: 10, color: colors.textMuted, marginTop: 4, fontFamily: 'monospace' }}
+                    numberOfLines={1}
+                  >
+                    {t._id}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={ctrlOpen} transparent animationType="slide">
+        <View style={styles.modalBg}>
+          <View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <TextInput
+              style={[styles.inp, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              value={qCtrl}
+              onChangeText={setQCtrl}
+              placeholder="Nº externo, nomenclatura tramo o ID Mongo…"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {qCtrl.trim().length > 0 && controlesFiltrados.length === 0 ? (
+                <Text style={{ color: colors.textMuted, padding: 12 }}>Sin coincidencias</Text>
+              ) : null}
+              {controlesFiltrados.map((c) => (
+                <Pressable
+                  key={c._id}
+                  style={[styles.row, { borderBottomColor: colors.border }]}
+                  onPress={() => {
+                    setForm((f) => ({ ...f, idControSem: c._id }));
+                    setCtrlOpen(false);
+                  }}
+                >
+                  <Text style={{ fontWeight: '700', color: colors.text }}>Control #{c.numExterno ?? '—'}</Text>
+                  <Text style={{ color: colors.textMuted }} numberOfLines={2}>
+                    {nomenclaturaSearchText(c) ||
+                      (typeof c.idViaTramo === 'object'
+                        ? c.idViaTramo?.nomenclatura?.completa ?? c.idViaTramo?.via
+                        : '') ||
+                      '—'}
+                  </Text>
+                  <Text
+                    style={{ fontSize: 10, color: colors.textMuted, marginTop: 4, fontFamily: 'monospace' }}
+                    numberOfLines={1}
+                  >
+                    {rowMongoIdString(c)}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
       <Modal visible={obsPick != null} transparent animationType="fade">
         <Pressable style={styles.modalBg} onPress={() => setObsPick(null)}>
           <Pressable style={[styles.modalDark, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={(e) => e.stopPropagation()}>
@@ -607,10 +728,6 @@ const styles = StyleSheet.create({
   img: { width: '100%', height: 180, borderRadius: 10, backgroundColor: '#e8edf3', marginBottom: 10 },
   cam: { backgroundColor: '#1565c0', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 10 },
   camTxt: { color: '#fff', fontWeight: '700' },
-  footer: { padding: 12, borderTopWidth: 1, borderTopColor: '#2d3b49', backgroundColor: '#18212b' },
-  save: { backgroundColor: '#c62828', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
-  saveTxt: { color: '#fff', fontWeight: '700' },
-  dis: { opacity: 0.45 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 20 },
   modal: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#cfd8dc' },
   modalDark: { backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#cfd8dc' },
