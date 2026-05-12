@@ -43,5 +43,6 @@
     "eas-cli": "^16.28.0",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@11.1.1"
 }
